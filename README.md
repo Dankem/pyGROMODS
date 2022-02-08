@@ -1,7 +1,7 @@
 # pyGROMODS
 Python based Graphical User Interface for generating input files for and running molecular dynamic simulation.
 
-#### Video Demo:  https://youtu.be/Pt0WMhvGkv8
+#### Video Demo:  NA
 #### Description:
 
 ### Requirements: 	Python 3 or higher
