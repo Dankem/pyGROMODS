@@ -1,0 +1,5 @@
+; User define position restraints
+#ifdef POSRES_UDP
+#include "posre_udp.itp"
+#endif
+ 

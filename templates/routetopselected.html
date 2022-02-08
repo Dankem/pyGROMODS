@@ -1,0 +1,33 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Route Top Selected
+{% endblock %}
+
+{% block main %}
+  <h1>Confirmation - {{ selected }} route and {{ ffselect }} Forcefield Selected</h1>
+
+	{% if F > 0 and not N > 3 %}
+		<strong>You must upload ligand topology file(s) compatible with {{ ffselect }}<strong><br><br>
+		* Note that only by uploading ligand topology compatible with {{ffselect}} can correct complex be generated<br>
+	{% elif F == 0 and (ffselect == "Opls" or ffselect == "Gromos") and not N > 3 %}
+		* You have choosen not to upload ligand topology(ies) file(s) compatible with {{ ffselect }}<br>
+		* It is strongly recommended to upload topology(ies) file(s) compatible with {{ ffselect }}<br>
+		* To do this, go back to select route and forcefield group, followed by YES instead<br><br>
+	{% elif F == 0 and (ffselect == "Amber" or ffselect == "Charmm") and not N > 3 %}
+		You have choosen not to upload ligand topology file(s) compatible with {{ ffselect }}<br><br>
+	{% elif F > 1 and N > 3 %}
+		You have choosen to upload peptides and/or proteins for setup with {{ ffselect }}<br><br>
+		{{ selected }} route will not prepare protein - ligand complex. Select another route to do that<br><br>
+		All proteins must be prepared by removing all non-standard recidues prior to uploading
+		Exampes of peptide sequence files can be found in sampleFiles inside your current working directory
+	{% endif %}
+
+	<br><br>
+	<h1>PLEASE NOTE:</h1>
+	* Only by clicking {{ selected }} button in 'Generate' page can you get the correct complex generated<br>
+	* However, you may be able to change your preferred forcefield. Please pay attention to output on the terminal<br><br>
+
+	<h1>You can now upload your files. Thank You.</h1><br>
+
+{% endblock %}

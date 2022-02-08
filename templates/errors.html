@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Errors
+{% endblock %}
+
+{% block main %}
+    <h1>Sorry, something went wrong!!!</h1>
+	<strong>Details:</strong><br>
+	{{ e }}
+
+	<br><br>
+	Please check the errors and make necessary corrections. Then rerun the setup
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Routes
+{% endblock %}
+
+{% block main %}
+    <h1>Select the GMXMDS Setup Route</h1>
+
+	<h4>There are three possible routes, depending on receptor - ligand complex to be generated. They are:</h4>
+
+	<ol>
+		<li>RLmulti</li>
+		<li>RLmany</li>
+		<li>RLsingle</li>
+		<li>PPmore</li>
+	</ol>
+
+	<h3>Choose one from the dropdown menu below</h3>
+
+	<form action="/setroute" method="post">
+		<label for="setuproute">Choose a Setup Route</label>
+		<select name="damas" id="damas">
+			<option value="None">No Selection</option>
+			<option value="RLmulti">RLmulti</option>
+			<option value="RLmany">RLmany</option>
+			<option value="RLsingle">RLsingle</option>
+			<option value="PPmore">PPmore</option>
+		</select>
+		<br><br>
+		<input type="submit" value="Submit">
+	</form>
+
+<p>Click the "Submit" button</p> 
+{% endblock %}

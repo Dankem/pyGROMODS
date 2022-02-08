@@ -1,0 +1,3 @@
+; Include Ligands Atomtypes
+#include "LIGS_at.itp"'
+

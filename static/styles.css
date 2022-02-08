@@ -1,0 +1,216 @@
+nav .navbar-brand
+{
+    /* size for brand */
+    font-size: xx-large;
+}
+
+/* Colors for brand */
+nav .navbar-brand .blue
+{
+    color: #537fbe;
+}
+nav .navbar-brand .red
+{
+    color: #ea433b;
+}
+nav .navbar-brand .yellow
+{
+    color: #f5b82e;
+}
+nav .navbar-brand .green
+{
+    color: #2e944b;
+}
+
+main .form-control
+{
+    /* Center form controls */
+    display: inline-block;
+
+    /* Override Bootstrap's 100% width for form controls */
+    width: auto;
+}
+
+main
+{
+    /* Scroll horizontally as needed */
+    overflow-x: auto;
+
+    /* Center contents */
+    /*text-align: center;
+	justify-content: center;*/
+}
+
+.footer
+{
+    position: relative;
+    display: inline-block;
+    text-align: center;
+    background-color: #D3D3D3;
+    left: 0;
+    bottom: 0;
+    top: auto;
+    width: 100%;
+    line-height: 0.25;
+    justify-content: center;
+}
+
+.container 
+{
+    font-familty: "Arial Helvetica sans-serif";
+	margin: 1px 35px 5px;
+}
+
+/*main .container 
+{
+    font-familty: "Arial Helvetica sans-serif;
+	margin: 1px 35px 5px;
+}*/
+
+#domfooter
+{
+    position: fixed;
+}
+
+h1
+{
+    color: blue;
+    font-size: 24px;
+    line-height: 1.5;
+}
+
+h2
+{
+    color: green;
+    font-weight: bold;
+    line-height: 1;
+}
+
+h3
+{
+    color: black;
+    font-weight: bold;
+    line-height: 1;
+}
+
+#gap
+{
+    float: left;
+    width: 1%;
+}
+
+.space {
+    font-size: 36px;
+}
+
+.dom-top {
+    width:100%;
+    z-index:1;
+    top:0;
+}
+
+.domnav {
+    overflow:visible;
+    display:block;
+    width:auto;
+    position:static;
+    float:center;
+    white-space:normal;
+}
+
+.domnav .domitem {
+    padding:4px 12px;
+    float:center;
+    width:auto;
+    border:none;
+    display:block;
+    outline:0;
+}
+
+.domitem {
+    width:100%;
+    display:block;
+    border:none;
+    white-space:normal;
+    float:none;
+    outline:0;
+    text-align:center;
+}
+
+.domformat {
+    color: #000!important;
+    background-color: #fff!important;
+    padding: 4px 12px!important;
+    box-shadow:0 2px 5px 0 rgba(0,0,0,0.16),0 2px 10px 0 rgba(0,0,0,0.12);
+}
+
+.mdsformat {
+    background-color: green;
+    padding: 4px 12px!important;
+    box-shadow:0 2px 5px 0 rgba(0,0,0,0.16),0 2px 10px 0 rgba(0,0,0,0.12);
+}
+
+.domnav-button {
+    border:none;
+    display:inline-block;
+    padding:4px 12px;
+    vertical-align:middle;
+    overflow:hidden;
+    text-decoration:none;
+    color:inherit;
+    background-color:inherit;
+    text-align:center;
+    cursor:pointer;
+    white-space:nowrap;
+}
+
+.alert {
+    display: block;
+    text-align: center;
+}
+
+/* Dropdown Button*/
+.dropbtn {
+    padding: 16px;
+    font-size: 16px;
+    border: none;
+}
+
+/*Positioning the dropdown content*/
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+/*Dropdown content hidden by default*/
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #f1f1f1;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1;
+}
+
+/*Links inside the dropdown*/
+.dropdown-content #b {
+    color: black;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+}
+
+/*Change color of dropdown links on hover*/
+.dropdown-content #b:hover {
+    background-color: #ddd;
+}
+
+/*Show the dropdown menu on hover*/
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+
+/*Change dropdown background color when content shows*/
+.dropdown:hover .dropbtn {
+    background-color: #3e8e41;
+}

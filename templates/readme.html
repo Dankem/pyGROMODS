@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    QGuides
+{% endblock %}
+
+{% block main %}
+    <h1>Quick Users Guide</h1>
+		
+	<p>PLEASE NOTE: This is not a docking platform. It is therefore essential that where applicable, all dockings would have been done using your preferred docking software.</p>
+
+	<p>IT IS STRONGLY ADVISED TO READ THE README.md FILE FIRST</p>
+
+	<strong>PREPARING NEEDED FILES - RECEPTOR, LIGAND AND/OR PEPTIDES:</strong> 
+	<p><strong>For Ligands:</strong> Separate ligand(s) from the complex, careful to maintain its docked orientation and position, then, Prepare the ligand(s) by adding hydrogen and checking that the charge is zero </p>
+
+ 	<p><strong>For Receptor/Proteins:</strong> While maintaning it in its docked orientation, prepare the protein by removing all hydrogens, and ligands using your preferred software. Correct any errors in downloaded protein structures using SwissPDB viewer, pdb4amber, etc and Check the suitability of protein manually using pdb2gmx and amber tleap</p>
+
+	<p><strong>For Peptides:</strong> Please prepare the peptide files similar to the samples in your workspace directory</p>
+
+	<p><strong>For User Supplied Ligand(s) Topology(ies):</strong> Ensure the topology files are compatible with your preferred forcefiled (amber, charmm, gromos or opls). All user suppied topology files must have at least the following headings [ moleculetype ], [ atomtypes ] and [ system ] to be successfully used by the platform </p>
+
+	<strong>* FIRST STEP IS TO SELECT THE DESIRED ROUTE</strong><br>
+	<strong>FOR RECEPTOR - LIGAND COMPLEXES:</strong><br>
+	<p>This platform provides three routes to follow in generating solvated receptor - ligand complex. The route to use depend on your needs and they are: </p>
+
+	<p><strong>RLmulti Route:</strong> To generates Receptor - multi_Ligands complex. This is good for a protein bound with more than one ligand or bound to a major ligand and minor moeities like Zn, PO4, SO4, etc. Only one receptor can be supplied to this route, but multiple ligands are allowed.</p>
+
+	<p><strong>RLmany Route:</strong> To generates separate Receptor - Ligand complex between the receptor and each of the ligand you supplied. This route is important where multiple ligands have been screened by docking against a target protein. Only one receptor can be supplied to this route, but multiple ligands are allowed.</p>
+			
+	<p><strong>RLsingle Route:</strong> To generates Receptor - Ligand complex between pairs of protein and ligand. This route accepts more than one receptors and ligands but must be uploaded in matching pair of protein and ligand.</p>
+	
+	<strong>FOR PROTEINS AND PEPTIDES:</strong> 
+	<p><strong>PPmore Route:</strong>  To prepare peptides and proteins and generate topology files suitable for molecular dynamic simulation with gromacs. Uploaded proteins must not have any none standard animo acids residues. If the peptide has been converted to protein structure (.pdb), it should be uploaded as protein.</p>
+
+	<strong>* SECOND STEP IS TO UPLOAD THE NECESSARY FILES </strong><br>
+	<strong>* THIRD STEP IS TO RUN THE SETUP </strong><br>
+
+	<p>Now, a new working directory will be created for each job using the unique ID number and your supplied name. In each directory at each step in the workflow sub-directories will be created for maximum job organization.</p>
+
+	<strong>* FOURTH STEP IS TO CHECK THE GENERATED STRUCTURE AND TOPOLOGY FILES WITH SHORT MDS RUN</strong><br>
+
+	<p>Thereafter, you can check the suitability of the generated solvated structures and topology files with short MDS run using the supplied sample or your prepared MDP files.</p>
+
+	<p>Please check sample folder in your working directory for examples of .mdp and peptide files for use with this platform or as template to prepare your own files.</p>
+
+	<h3>For more detailed information, please read README.md file</h3>
+{% endblock %}

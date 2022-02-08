@@ -1,0 +1,41 @@
+#tleap4ligs.in 
+# To setup complex with four ligands
+source leaprc.gaff2 #
+source leaprc.protein.ff19SB # OR leaprc.ff99SBildn OR leaprc.protein.ff14SB #
+source leaprc.water.tip3p #
+set default PBRadii mbondi2 #
+loadAmberParams yLIG1.frcmod #
+LIG1 = loadMol2 xLIG1.mol2 #
+loadAmberParams yLIG2.frcmod #
+LIG2 = loadMol2 xLIG2.mol2 #
+loadAmberParams yLIG3.frcmod #
+LIG3 = loadMol2 xLIG3.mol2 #
+loadAmberParams yLIG4.frcmod #
+LIG4 = loadMol2 xLIG4.mol2 #
+receptor = loadPDB xreceptor.pdb #
+receptor2 = combine {receptor LIG1} #
+receptor3 = combine {receptor2 LIG2} #
+receptor4 = combine {receptor3 LIG3} #
+complex = combine {receptor4 LIG4} #
+saveAmberParm LIG1 LIG1.prmtop LIG1.inpcrd #
+saveAmberParm LIG2 LIG2.prmtop LIG2.inpcrd #
+saveAmberParm LIG3 LIG3.prmtop LIG3.inpcrd #
+saveAmberParm LIG4 LIG4.prmtop LIG4.inpcrd #
+savePdb LIG1 LIG1_new.pdb #
+savePdb LIG2 LIG2_new.pdb #
+savePdb LIG3 LIG3_new.pdb #
+savePdb LIG4 LIG4_new.pdb #
+saveAmberParm receptor Receptor.prmtop Receptor.inpcrd #
+saveAmberParm receptor2 Receptor2.prmtop Receptor2.inpcrd #
+saveAmberParm receptor3 Receptor3.prmtop Receptor3.inpcrd #
+saveAmberParm receptor4 Receptor4.prmtop Receptor4.inpcrd #
+saveAmberParm complex complex.prmtop complex1.inpcrd #
+savePdb receptor Receptor_new.pdb #
+savePdb receptor2 Receptor2_new.pdb #
+savePdb receptor3 Receptor3_new.pdb #
+savePdb receptor4 Receptor4_new.pdb #
+savePdb complex complex.pdb #
+#solvateOct complex TIP3PBOX 12.0 # #This box size can be adjusted as needed
+#addIons2 complex NA 0 # #If the net charge on complex is positive, use 'addIons2 complex CL 0'
+#saveAmberParm complex tlpSolvated.prmtop tlpSolvated.inpcrd #
+quit #

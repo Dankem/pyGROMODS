@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    MDS Setup
+{% endblock %}
+
+{% block main %}
+  <h1>Upload Needed Files For MDS</h1>
+  <p>Please browse to any of the gmxmds files earlier generated and select all relevant files for MD simulations</p>
+  <p>Please Note: The "fsolvated.gro" is the final solvated structure with NA and CL added to neutralze and maintain the system at 0.15M. This will be used.</p>
+  <p>If, however, you have choosen to solvate manually, rename your final solvated.gro to fsolvated.gro and replace topol.top with your updated one</p><br>
+  <p><strong>To setup manually, please read instructions in README.md file, and upload the relevant files below</strong></p>
+
+  <div id="gap">
+    <p> </p>
+  </div>
+
+  <h2> It's time to upload the necessary files</h2><br>
+
+  <form method=post enctype=multipart/form-data>
+    Multiple files from gmxmds directory earlier generated can be uploaded
+    <label for="mdsfiles">GMXMDS File(s):</label><br>
+    <input type="file" name="mdsfiles[]" multiple="true" autocomplete="off" required><br><br>
+	
+	<div id="gap">
+		<p> </p>
+	</div>
+
+	MDP files has to be uploaded individually. Check Sample folder in your selelcted Route generated workspace directory for samples to help prepare yours
+	<br><br>
+    <label for="minzsd">MinimizationSD:</label><br>
+    <input type="file" name="minzsd"><br><br>
+
+    <label for="minzcg">MinimizationCG:</label><br>
+    <input type="file" name="minzcg"><br><br>
+
+    <label for="equnvt">EquilibrationNVT:</label><br>
+    <input type="file" name="equnvt"><br><br>
+
+    <label for="equnpt">EquilibrationNPT:</label><br>
+    <input type="file" name="equnpt"><br><br>
+
+    <label for="equpmd">EquilibrationPMD:</label><br>
+    <input type="file" name="equpmd"><br><br>
+
+    <label for="pmds">ProductionMD:</label><br>
+    <input type="file" name="pmds"><br><br>
+
+    <input type="submit" value="Upload">
+  </form>
+
+  <br>
+
+  <h1>THANK YOU</h1><br>
+{% endblock %}

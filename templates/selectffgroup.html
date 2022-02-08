@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Route Selected
+{% endblock %}
+
+{% block main %}
+  <h1>Select Your Preferred Forcefield Group</h1>	
+	<h4>The following are the current groups of forcefields implementation in gromacs:</h4>
+
+	<ol>
+		<li>Amber</li>
+		<li>Charmm</li>
+		<li>Gromos</li>
+		<li>Opls</li>
+	</ol>
+
+	This platform is able to auto-generate topology for ligand compatible with amber, charmm, gromos and opls. In addition, user may upload compatible topology generated using any other program. UPLOADING LIGAND TOPOLOGY IS STRONGLY RECOMMENDED FOR OPLS AND GROMOS FORCEFIELDS. If uploaded, the two sets of topologies will be attempted starting with the user supplied topologies, while platform default will serve as backup. You will be provided on-screen option to reverse this order if you wish. 
+
+	Choose one from the dropdown menus below<br><br>
+
+	<form action="/selectffgroup" method="post">
+		<label for="setforcefield">Choose your preferred group of forcefield</label>
+		<select name="gmodsff" id="gmodsff">
+			<option value="None">No Selection</option>
+			<option value="Amber">Amber</option>
+			<option value="Charmm">Charmm</option>
+			<option value="Gromos">Gromos</option>
+			<option value="Opls">Opls</option>
+		</select>
+		<br><br>
+
+		{% if (N == 1 or N == 2 or N == 3) %}
+			<label for="choosetoupload">Will you like to upload Ligand(s) topology(ies)?</label>
+			<select name="gmodsyn" id="gmodsyn">
+				<option value="None">No Selection</option>
+				<option value="YES">YES</option>
+				<option value="NO">NO</option>
+			</select>
+			<br><br>
+		{% elif N == 4 %}
+			<label for="choosetoupload">What will you like to upload?</label>
+			<select name="gmodsyn" id="gmodsyn">
+				<option value="None">No Selection</option>
+				<option value="Peptides">Peptides</option>
+				<option value="Proteins">Proteins</option>
+			</select>
+			<br><br>
+		{% endif %}
+		<input type="submit" value="Submit">
+	</form>
+
+<p>Click the "Submit" button</p> 
+
+{% endblock %}

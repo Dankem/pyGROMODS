@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Run Setup
+{% endblock %}
+
+{% block main %}
+  <h1>Generate MDS Input Files</h1>
+	{% if N == 1 %}
+		<div style="letter-spacing:4px;">
+			<p><strong>You have choosen RLmulti route to generate MDS input files. This will generate files for receptor - multi-ligand complex. To change, set new route and re-upload your files</strong></p>
+			<p><strong>To continue with RLmulti, Click (just once) the button below. Then monitor progress on the terminal</strong></p>
+			<button class="domnav domformat">
+				<a href="/rlmulti" class="domitem domnav-button">RLmulti</a>
+			</button>
+		</div>
+
+		<div id="gap"><p> </p></div>
+
+	{% elif N == 2 %}
+		<div style="letter-spacing:4px;">
+			<p><strong>You have choosen RLmany route to generate MDS input files. This will genenrate separate files for each ligand - recptor complex. To change, set a new route and re-upload your files</strong></p>
+			<p><strong>To continue with RLmany, Click (just once) the button below. Then monitor progress on the terminal</strong></p>
+			<button class="domnav domformat">
+				<a href="/rlmany" class="domitem domnav-button">RLmany</a>
+			</button>
+		</div>
+
+		<div id="gap"><p> </p></div>
+
+	{% elif N == 3 %}
+		<div style="letter-spacing:4px;">
+			<p><strong>You have choosen RLsingle route to generate MDS input files. This will generate separate files each matching pairs of receptor - ligand complex. To change, set a new route and re-upload your files</strong></p>
+			<p><strong>To continue with RLsingle, Click (just once) the button below. Then monitor progress on the terminal</strong></p>
+			<button class="domnav domformat">
+				<a href="/rlsingle" class="domitem domnav-button">RLsingle</a>
+			</button>
+		</div>
+
+	{% elif N == 4 %}
+		<div style="letter-spacing:4px;">
+			<p><strong>You have choosen PPmore route to generate MDS input files for Peptides and/or Proteins. This will not work for protein - ligand complex. To change, set a new route and re-upload your files</strong></p>
+			<p><strong>To continue with PPmore, Click (just once) the button below. Then monitor progress on the terminal</strong></p>
+			<button class="domnav domformat">
+				<a href="/ppmore" class="domitem domnav-button">PPmore</a>
+			</button>
+		</div>
+	{% endif %}
+{% endblock %}

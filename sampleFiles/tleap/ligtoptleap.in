@@ -1,0 +1,10 @@
+#tleapligtops.in 
+# To get topologies for each ligand
+source leaprc.gaff2 #
+source leaprc.ff99SB #leaprc.protein.ff14SB OR leaprc.ff99SBildn #
+source leaprc.water.tip3p #
+loadamberparams LIG.frcmod #
+LIG = loadMol2 LIG.mol2 #
+saveAmberParm LIG LIGx.prmtop LIGy.inpcrd #
+savePdb LIG LIGz_new.pdb #
+quit #

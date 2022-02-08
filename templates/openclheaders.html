@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    OpenCL Headers
+{% endblock %}
+
+{% block main %}
+  <h1>Upload OpenCL Headers</h1><br>
+  <p>OpenCl Headers are usually located in the following "\gromacs\share\gromacs\opencl\gromacs" directory</p>
+  <p>The files are usually found inside 'ewald', 'gpu_utils', 'mdlib', and 'pbcutil' subfolders</p>
+  <p>Please, first gather all the files together into one folder, edit each file to point the position of the #include files to the current directory, and saved for subsequent use. Then click below to upload the files</p><br>
+
+  <form method=post enctype=multipart/form-data>
+    Multiple OpenCl can be uploaded here from the folder where you saved them
+    <label for="oclheaders">OpenCL Healder Files:</label><br>
+    <input type="file" name="oclheaders[]" multiple="true" autocomplete="off" required><br><br>
+	
+	<input type="submit" value="Upload"><br>
+
+	<br>
+
+	<p>THANK YOU</p>
+{% endblock %}

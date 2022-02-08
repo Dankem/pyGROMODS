@@ -1,0 +1,19 @@
+#tleap1ligs.in 
+# To setup complex with one ligand
+source leaprc.gaff2 #
+source leaprc.protein.ff19SB #leaprc.protein.ff14SB OR leaprc.ff99SBildn #
+source leaprc.water.tip3p #
+loadamberparams yLIG1.frcmod #
+LIG = loadMol2 xLIG1.mol2 #
+receptor = loadPDB xreceptor.pdb #
+complex = combine {receptor LIG} #
+set default PBRadii mbondi2 #
+saveAmberParm LIG LIG.prmtop LIG.inpcrd #
+saveAmberParm receptor Receptor.prmtop Receptor.inpcrd #
+savePdb receptor Receptor_new.pdb #
+savePdb complex complex.pdb #
+saveAmberParm complex complex.prmtop complex1.inpcrd #
+#solvateOct complex TIP3PBOX 12.0 # #This box size can be adjusted as needed
+#addIons2 complex NA 0 # #If the net charge on complex is positive, use 'addIons2 complex CL 0'
+#saveAmberParm complex tlpSolvated.prmtop tlpSolvated.inpcrd #
+quit #

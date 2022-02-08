@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    MDS Run
+{% endblock %}
+
+{% block main %}
+  <h1>Test or Full Scale MD Simulation</h1>
+    
+	<div style="letter-spacing:4px;">
+		<p><strong> Having problem compiling opencl for MDS run? Try the following:</strong></p>
+		<p> 1). Go to opencl directory, ususally "\gromacs\share\gromacs\opencl\gromacs" and edit files in each subdirectory by specifying Absolute path to all '#include' files not found in that subdirectory. Then Click MDSrun below</p>
+		<p> 2). Alternatively, click ACTIVATE button below to copying OpenCL headers to MDS working subdirectories. After which you can click MDSrun for simulation</p>
+			<button class="domnav domformat">
+				<a href="/openclheaders" class="domitem domnav-button">ACTIVATE</a>
+			</button>
+	</div>
+
+	<br>
+
+	<div style="letter-spacing:4px;">
+		<p><strong> To test run your generated solvated complex or perform full Molecular Dynamic Simulation, Click MDSrun button below </strong></p>
+			<button class="domnav domformat">
+				<a href="/runscmds" class="domitem domnav-button">MDSrun</a>
+			</button>
+	</div>
+
+	<br>
+
+	<p>THANK YOU</p>
+{% endblock %}

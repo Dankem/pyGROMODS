@@ -1,0 +1,83 @@
+#tleap10ligs.in 
+# To setup complex with three ligands
+source leaprc.gaff2 #
+source leaprc.protein.ff19SB # OR leaprc.ff99SBildn OR leaprc.protein.ff14SB #
+source leaprc.water.tip3p #
+set default PBRadii mbondi2 #
+loadAmberParams yLIG1.frcmod #
+LIG1 = loadMol2 xLIG1.mol2 #
+loadAmberParams yLIG2.frcmod #
+LIG2 = loadMol2 xLIG2.mol2 #
+loadAmberParams yLIG3.frcmod #
+LIG3 = loadMol2 xLIG3.mol2 #
+loadAmberParams yLIG4.frcmod #
+LIG4 = loadMol2 xLIG4.mol2 #
+loadAmberParams yLIG5.frcmod #
+LIG5 = loadMol2 xLIG5.mol2 #
+loadAmberParams yLIG6.frcmod #
+LIG6 = loadMol2 xLIG6.mol2 #
+loadAmberParams yLIG7.frcmod #
+LIG7 = loadMol2 xLIG7.mol2 #
+loadAmberParams yLIG8.frcmod #
+LIG8 = loadMol2 xLIG8.mol2 #
+loadAmberParams yLIG9.frcmod #
+LIG9 = loadMol2 xLIG9.mol2 #
+loadAmberParams yLIG10.frcmod #
+LIG10 = loadMol2 xLIG10.mol2 #
+receptor = loadPDB xreceptor.pdb #
+receptor2 = combine {receptor LIG1} #
+receptor3 = combine {receptor2 LIG2} #
+receptor4 = combine {receptor3 LIG3} #
+receptor5 = combine {receptor4 LIG4} #
+receptor6 = combine {receptor5 LIG5} #
+receptor7 = combine {receptor6 LIG6} #
+receptor8 = combine {receptor7 LIG7} #
+receptor9 = combine {receptor8 LIG8} #
+receptor10 = combine {receptor9 LIG9} #
+complex = combine {receptor10 LIG10} #
+saveAmberParm LIG1 LIG1.prmtop LIG1.inpcrd #
+saveAmberParm LIG2 LIG2.prmtop LIG2.inpcrd #
+saveAmberParm LIG3 LIG3.prmtop LIG3.inpcrd #
+saveAmberParm LIG4 LIG4.prmtop LIG4.inpcrd #
+saveAmberParm LIG5 LIG5.prmtop LIG5.inpcrd #
+saveAmberParm LIG6 LIG6.prmtop LIG6.inpcrd #
+saveAmberParm LIG7 LIG7.prmtop LIG7.inpcrd #
+saveAmberParm LIG8 LIG8.prmtop LIG8.inpcrd #
+saveAmberParm LIG9 LIG9.prmtop LIG9.inpcrd #
+saveAmberParm LIG10 LIG10.prmtop LIG10.inpcrd #
+savePdb LIG1 LIG1_new.pdb #
+savePdb LIG2 LIG2_new.pdb #
+savePdb LIG3 LIG3_new.pdb #
+savePdb LIG4 LIG4_new.pdb #
+savePdb LIG5 LIG5_new.pdb #
+savePdb LIG6 LIG6_new.pdb #
+savePdb LIG7 LIG7_new.pdb #
+savePdb LIG8 LIG8_new.pdb #
+savePdb LIG9 LIG9_new.pdb #
+savePdb LIG10 LIG10_new.pdb #
+saveAmberParm receptor Receptor.prmtop Receptor.inpcrd #
+saveAmberParm receptor2 Receptor2.prmtop Receptor2.inpcrd #
+saveAmberParm receptor3 Receptor3.prmtop Receptor3.inpcrd #
+saveAmberParm receptor4 Receptor4.prmtop Receptor4.inpcrd #
+saveAmberParm receptor5 Receptor5.prmtop Receptor5.inpcrd #
+saveAmberParm receptor6 Receptor6.prmtop Receptor6.inpcrd #
+saveAmberParm receptor7 Receptor7.prmtop Receptor7.inpcrd #
+saveAmberParm receptor8 Receptor8.prmtop Receptor8.inpcrd #
+saveAmberParm receptor9 Receptor9.prmtop Receptor9.inpcrd #
+saveAmberParm receptor10 Receptor10.prmtop Receptor10.inpcrd #
+saveAmberParm complex complex.prmtop complex1.inpcrd #
+savePdb receptor Receptor_new.pdb #
+savePdb receptor2 Receptor2_new.pdb #
+savePdb receptor3 Receptor3_new.pdb #
+savePdb receptor4 Receptor4_new.pdb #
+savePdb receptor5 Receptor5_new.pdb #
+savePdb receptor6 Receptor6_new.pdb #
+savePdb receptor7 Receptor7_new.pdb #
+savePdb receptor8 Receptor8_new.pdb #
+savePdb receptor9 Receptor9_new.pdb #
+savePdb receptor10 Receptor10_new.pdb #
+savePdb complex complex.pdb #
+#solvateOct complex TIP3PBOX 12.0 # #This box size can be adjusted as needed
+#addIons2 complex NA 0 # #If the net charge on complex is positive, use 'addIons2 complex CL 0'
+#saveAmberParm complex tlpSolvated.prmtop tlpSolvated.inpcrd #
+quit #

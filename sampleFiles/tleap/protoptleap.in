@@ -1,0 +1,13 @@
+#tleap1ligs.in 
+# To amber topology and parameter files for convertion to gromacs using acype for peptide and protein
+source leaprc.gaff2 #
+source leaprc.protein.ff19SB #leaprc.protein.ff14SB OR leaprc.protein.ff19SB #
+source leaprc.water.tip3p #
+ppmore = loadPDB ppmore.pdb #
+set default PBRadii mbondi2 #
+savePdb ppmore complex.pdb #
+saveAmberParm ppmore complex.prmtop complex1.inpcrd #
+#solvateOct ppmore TIP3PBOX 12.0 # #This box size can be adjusted as needed
+#addIons2 ppmore NA 0 # #If the net charge on complex is positive, use 'addIons2 complex CL 0'
+#saveAmberParm ppmore tlpSolvated.prmtop tlpSolvated.inpcrd #
+quit #

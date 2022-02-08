@@ -1,0 +1,46 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Uploads
+{% endblock %}
+
+{% block main %}
+	{% if not N > 2 %}
+		<h1>Uploaded Ligand File(s)</h1>
+		{% for file in Lfilelist %}
+			{{ file.filename }}<br></br>
+		{% endfor %}
+	{% elif N == 3 %}
+		<h1>Uploaded Ligand File</h1>
+		{{ Lfilelist.filename }}
+	{% endif %}
+
+	{% if (F > 0 and not N > 2) %}
+		<h1>Uploaded Ligand Topology(ies)</h1>
+		{% for file in Ffilelist %}
+			{{ file.filename }}<br></br>
+		{% endfor %}
+	{% elif (F > 0 and N == 3) %}
+		<h1>Uploaded Ligand Topology(ies)</h1>
+		{{ Ffilelist.filename }}
+	{% endif %}
+
+	{% if not N > 3 %}
+		<h1>Uploaded Receptor File(s)</h1>
+		{{ Rfilelist.filename }}
+	{% endif %}
+
+	{% if F == 2 and N > 3 %}
+		<h1>Uploaded Peptide Sequence Files</h1>
+		{% for file in Ptfilelist %}
+			{{ file.filename }}<br></br>
+		{% endfor %}
+	{% elif F == 3 and N > 3 %}
+		<h1>Uploaded Protein Files</h1>
+		{% for file in Prfilelist %}
+			{{ file.filename }}<br></br>
+		{% endfor %}
+	{% endif %}
+
+	<br><br><br><br>
+{% endblock %}
