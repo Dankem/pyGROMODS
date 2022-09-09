@@ -21,9 +21,10 @@ import sys
 if sys.version_info[0] < 3:
     raise Exception("Python 3 or a more recent version is required.")
 
+from pathlib import Path
+from tkinter import Tk, filedialog
 import os
 import subprocess
-from pathlib import Path
 import time
 import shutil
 import random
@@ -40,15 +41,16 @@ import gmodsScripts.gmodsRLmulti
 import gmodsScripts.gmodsRLmany
 import gmodsScripts.gmodsRLsingle
 import gmodsScripts.gmodsSCmds
+import gmodsScripts.gmodsCONmds
 import gmodsScripts.gmodsPPmore
-from gmodsScripts.gmodsHelpers import printWarning, printNote, cleanup
+from gmodsScripts.gmodsHelpers import printWarning, printNote, cleanup, select_folder, gmxtop
 
 from flask import Flask, flash, request, redirect, url_for, render_template, g
 from functools import wraps
 from werkzeug.utils import secure_filename
 
-appDIR = os.path.abspath(os.path.dirname(sys.argv[0]))
 gmxDIR = Path.cwd()
+appDIR = os.path.abspath(os.path.dirname(sys.argv[0]))
 
 if getattr(sys, 'frozen', False):
     template_folder = os.path.join(appDIR, 'templates')
@@ -62,9 +64,10 @@ else:
 app.jinja_env.auto_reload = True
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 
+# Let's setup our GUI interface
 try:
     from flaskwebgui import FlaskUI
-    ui = FlaskUI(app, width=800, height=600, port=1380) # add app and parameters
+    ui = FlaskUI(app, width=800, height=650, port=1380, start_server='flask') # add app and parameters
 except ImportError:
     printWarning("'flaskwebgui' is not installed or has errors, trying 'pyfladesk'.....")
     try:
@@ -76,14 +79,17 @@ except ImportError:
         time.sleep(10)
         ui = app
 
+# Setup how errors will be handled
 @app.errorhandler(Exception)
 def all_exceptions(e):
     os.chdir(gmxDIR)
     return render_template("errors.html", e=e, N=N)
 
+# Auto generate the required secret key
 KEY = os.urandom(14)
 app.config['SECRET_KEY'] = KEY
 
+# Performing some folder setup
 UPLOAD_FOLDER = os.path.join(appDIR, 'Uploads')
 if not os.path.isdir(UPLOAD_FOLDER):
     os.mkdir(UPLOAD_FOLDER)
@@ -98,13 +104,23 @@ ALLOWED_EXTENSIONS = {'pdb', 'mol2', 'gro', 'top', 'itp', 'mdp', 'h', 'cl', 'clh
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# Choose the preferred Working directory and change to it
+title = "Select Working Directory"
+wFolder = select_folder(title)
+gmxDIR = os.path.join(os.getcwd(), wFolder)
+os.chdir(gmxDIR)
+print("Selected Working Directory is ", gmxDIR)
+
 # Set some global varibales
-global N, A, F, selected, ffselect
+global N, A, F, selected, ffselect, gmxtoplist, gmxtopdir, dictff
 N = 0
 A = 0
 F = 0
 selected = " "
 ffselect = " "
+gmxtoplist = " "
+gmxtopdir = " "
+dictff = {}
 
 def setup_route(f):
     """
@@ -210,6 +226,9 @@ def ff_selection():
     global F
     global selected
     global ffselect
+    global gmxtoplist
+    global gmxtopdir
+    global dictff
 	# User reached route via POST (as by submitting a form via POST)
     if request.method == "POST":
         # Cleanup the existing Ligsff subdirectory or file
@@ -322,17 +341,45 @@ def ff_selection():
                 if "Peptides" in listUdir:
                     shutil.rmtree(os.path.join(app.config['UPLOAD_FOLDER'], "Peptides"))
 
-        # Render the quoted values in quoted.html
-        return render_template("routetopselected.html", selected=selected, ffselect=ffselect, N=N, F=F)
+        # Get the list of forcefields compatible with ffselect
+        gmxtoplist, gmxtopdir = gmxtop()
+        seltoplist = []
+        for gtl in gmxtoplist:
+            if ffselect == "Amber" and gtl[0:5].lower() == ffselect.lower():
+                seltoplist.append(gtl)
+            elif ffselect == "Charmm" and gtl[0:6].lower() == ffselect.lower():
+                seltoplist.append(gtl)
+            elif ffselect == "Gromos" and gtl[0:6].lower() == ffselect.lower():
+                seltoplist.append(gtl)
+            elif ffselect == "Opls" and gtl[0:4].lower() == ffselect.lower():
+                seltoplist.append(gtl)
+
+        # Setup a Directory with ff as key and water models as values
+        dictff = {}
+        for ftl in gmxtoplist:
+            ftlfolder = ftl + ".ff"
+            ftldir = os.path.join(gmxtopdir, ftlfolder)
+            listftldir = os.listdir(ftldir)
+            wmodels = []
+            if not "watermodels.dat" in listftldir:
+                wmodels.append("none")
+            else:
+                wmodels.append("none")
+                wmfile = os.path.join(ftldir, "watermodels.dat")
+                wmfileopen = open(wmfile, "r")
+                wmfileread = wmfileopen.readlines()
+                for wline in wmfileread:
+                    wmlist = wline.split()
+                    wmodels.append(wmlist[0])
+                wmfileopen.close()
+            dictff[ftl] = wmodels
+
+        # Render the collected values in routetopselected.html
+        return render_template("routetopselected.html", selected=selected, ffselect=ffselect, seltoplist=seltoplist, N=N, F=F)
 
     # User reached route via GET (as by clicking a link or via redirect)
     else:
         return render_template("selectffgroup.html", N=N)
-
-@app.route('/runscripts')
-@setup_route
-def runscripts():
-    return render_template("runscripts.html", N=N)
 
 @app.route('/rlfilesupload', methods=['GET', 'POST'])
 @setup_route
@@ -651,33 +698,97 @@ def rlupload():
     else:
         return render_template("rlfilesupload.html", N=N, F=F)
 
-@app.route('/rlmulti')
-def rlmulti_script():
-    gmodsScripts.gmodsRLmulti.RLmulti()
-    flash('Protein - Ligand Complex Generation was Successful')
-    return render_template("runscripts.html", N=N, category='success')
+@app.route('/runscripts', methods=['GET', 'POST'])
+@setup_route
+def runscripts():
+    global selected
+    global gmxtoplist
+    global gmxtopdir
+    global dictff
 
-@app.route('/rlmany')
-def rlmany_script():
-    gmodsScripts.gmodsRLmany.RLmany()
-    flash('Protein - Ligand Complex Generation was Successful')
-    return render_template("runscripts.html", N=N, category='success')
+    if request.method == 'POST':
+        # Check if user choose the correct default values
+        if not request.form.get("timeout"):
+            flash('You must supply a valid value for timeout')
+            return redirect("/runscripts")
 
-@app.route('/rlsingle')
-def rlsingle_script():
-    gmodsScripts.gmodsRLsingle.RLsingle()
-    flash('Protein - Ligand Complex Generation was Successful', 'success')
-    return render_template("runscripts.html", N=N)
+        if not request.form.get("changed"):
+            flash('You must supply a valid value for -d box size')
+            return redirect("/runscripts")
 
-@app.route('/ppmore')
-def ppmore_script():
-    gmodsScripts.gmodsPPmore.PPmore()
-    flash('Protein(s) and/or Peptide(s) MDS Setup was Successful')
-    return render_template("runscripts.html", N=N, category='success')
+        if not request.form.get("changebt"):
+            flash('You must select a valid value for -bt box type')
+            return redirect("/runscripts")
+
+        if not request.form.get("approach"):
+            flash('You must select a valid approach to use')
+            return redirect("/runscripts")
+
+        if not request.form.get("forcefield"):
+            flash('You must select a valid forcefield to use')
+            return redirect("/runscripts")
+
+        if not request.form.get("watertype"):
+            flash('You must select a valid water model to use')
+            return redirect("/runscripts")
+
+        # If the submitted data are valid, store them in varibales
+        ftimeout = int(request.form.get("timeout"))
+        fchanged = float(request.form.get("changed"))
+        fchangebt = request.form.get("changebt")
+        fapproach = request.form.get("approach")
+        fforcefield = request.form.get("forcefield")
+        fwatertype = request.form.get("watertype")
+
+        if not (fapproach == "Interactive" and fforcefield == "select" and fwatertype == "select"):
+            approach = "B"
+        else:
+            approach = "A"
+
+		# Set the variable up as list of default values
+        fdefaults = [fforcefield, fwatertype, fchangebt, fchanged, ftimeout, approach]
+
+		# Pass the defaults to the script
+        if selected == "RLmulti":
+            gmodsScripts.gmodsRLmulti.RLmulti(appDIR, gmxDIR, fdefaults)
+            os.chdir(gmxDIR)
+            flash('Protein - Ligand Complex Generation was Successful')
+            return render_template("runscripts.html", N=N, selected=selected, gmxtoplist=gmxtoplist, dictff=dictff, category='success')
+
+        elif selected == "RLmany":
+            gmodsScripts.gmodsRLmany.RLmany(appDIR, gmxDIR, fdefaults)
+            os.chdir(gmxDIR)
+            flash('Protein - Ligand Complex Generation was Successful')
+            return render_template("runscripts.html", N=N, selected=selected, gmxtoplist=gmxtoplist, dictff=dictff, category='success')
+
+        elif selected == "RLsingle":
+            gmodsScripts.gmodsRLsingle.RLsingle(appDIR, gmxDIR, fdefaults)
+            os.chdir(gmxDIR)
+            flash('Protein - Ligand Complex Generation was Successful', 'success')
+            return render_template("runscripts.html", N=N, selected=selected, gmxtoplist=gmxtoplist, dictff=dictff, category='success')
+
+        elif selected == "PPmore":
+            gmodsScripts.gmodsPPmore.PPmore(appDIR, gmxDIR, fdefaults)
+            os.chdir(gmxDIR)
+            flash('Protein(s) and/or Peptide(s) MDS Setup was Successful')
+            return render_template("runscripts.html", N=N, selected=selected, gmxtoplist=gmxtoplist, dictff=dictff, category='success')
+
+        else:
+            os.chdir(gmxDIR)
+            flash('No recognized route for generating MDS input files was detected')
+            return render_template("runscripts.html", N=N, selected=selected, gmxtoplist=gmxtoplist, dictff=dictff, category='warning')
+
+    else:
+        return render_template("runscripts.html", N=N, selected=selected, gmxtoplist=gmxtoplist, dictff=dictff)
 
 @app.route('/scmds', methods=['GET', 'POST'])
 def scmds_setup():
     global N
+    global A
+
+    # Reset the value of A
+    A = 0
+
     if request.method == 'POST':
         # check if the post request has the file part
         if 'mdsfiles[]' not in request.files:
@@ -756,9 +867,32 @@ def scmds_setup():
 
         # Render template or redirect to run gmodsSCmds.py script
         flash('Setting up files for MDS was Successful')
-        return render_template("scmdsrun.html", N=N, category='success')
+        return render_template("scmdsrun.html", N=N, A=A, category='success')
     else:
         return render_template("scmds.html", N=N)
+
+@app.route('/openclactivate', methods=['GET', 'POST'])
+def oclactivate():
+    global N
+    global A
+
+    if request.method == 'POST':
+        # Check if user choose the correct default values
+        if not request.form.get("activate"):
+            flash('You must supply YES or NO for OpenCL activation')
+            return redirect("/scmdsrun.html")
+
+        # If valid value was supplied
+        if request.form.get("activate") == "NO":
+            A += 1
+            return render_template("scmdsrun.html", N=N, A=A)
+
+        if request.form.get("activate") == "YES":
+            A += 1
+            return render_template("openclheaders.html", N=N)
+
+    else:
+        return render_template("scmdsrun.html", N=N)
 
 @app.route('/openclheaders', methods=['GET', 'POST'])
 def oclupload():
@@ -799,7 +933,7 @@ def oclupload():
                 header.save(os.path.join(oclfolder, oclfilename))
 
         flash('Successful OpenCL Headers files Upload')
-        return render_template("scmdsrun.html", N=N, category='success')
+        return render_template("scmdsrun.html", N=N, A=A, category='success')
 
     else:
         A += 1
@@ -807,17 +941,334 @@ def oclupload():
 
 @app.route('/runscmds')
 def runmds_script():
-    gmodsScripts.gmodsSCmds.SCmds()
+    gmodsScripts.gmodsSCmds.SCmds(appDIR, gmxDIR)
+    os.chdir(gmxDIR)
     flash('MDS of solvated complex was Successful')
     return render_template("index.html", N=N, category='success')
 
 @app.route('/scmdsrun')
 def mdsrun_page():
-    return render_template("scmdsrun.html", N=N)
+    global A
+    return render_template("scmdsrun.html", N=N, A=A)
+
+@app.route("/selectmdstype", methods=["GET", "POST"])
+def mdstype_selection():
+    """Determine the approach to use for the MDS run"""
+    global N
+    global F
+    global selected
+    global ffselect
+
+    # User reached route via POST (as by submitting a form via POST)
+    if request.method == "POST":
+        # Check if user choose a MDS type from the dropdown menu or ignore
+        if not request.form.get("mdstype"):
+            flash('You must select an approach to use for MDS run')
+            return redirect("/selectmdstype")
+
+        # Store the submitted symbol as varibale
+        mdtype = request.form.get("mdstype")
+
+        # Check if selected route is valid
+        if not (mdtype == "Fresh" or mdtype == "Continuation"):
+            flash('You must select an approach to use for MDS run')
+            return redirect("/selectmdstype")
+
+        # If selection is valid, perform appropraite operation
+        if mdtype == "Fresh":
+            return render_template("scmds.html", N=N)
+        elif mdtype == "Continuation":
+            return render_template("scmdcontinuation.html", N=N)
+
+    # User reached route via GET (as by clicking a link or via redirect)
+    else:
+        return render_template("selectmdstype.html", N=N)
+
+@app.route('/runconmds')
+def conmds_script():
+    # Select the mdsgmx_* directory meant for continuation and change to it
+    title = "Select Continuation Working Directory"
+    cFolder = select_folder(title)
+    conDIR = os.path.join(os.getcwd(), cFolder)
+    print("Selected Continuation Working Directory is ", conDIR)
+
+    os.chdir(conDIR)
+    cwdirall = os.listdir()
+
+    # Checking currently available files and folders in the directory
+    printNote("Checking the previous files ....")
+
+    if not ('fsolvated.gro' in cwdirall and 'posre.itp' in cwdirall and 'topol.top' in cwdirall):
+        flash('The required compulsory files are missing from the selected directory')
+        return render_template("scmdcontinuation.html", N=N)
+
+    if not ('LIGS_at.itp' in cwdirall or 'LIGS_mn.itp' in cwdirall or 'LIGS_mt.itp' in cwdirall):
+        printNote("One or more Ligand(s) related files are missing. They may not be needed if all needed parameters are contained in topol.top file. Otherwise, the process may fail")
+
+    if not 'mdps' in cwdirall:
+        flash('The mdps folder is missing from the selected directory')
+        return render_template("scmdcontinuation.html", N=N)
+    else:
+        mdpfilename = ['minzsd.mdp', 'minzcg.mdp', 'equnvt.mdp', 'equnpt.mdp', 'equpmd.mdp', 'pmds.mdp']
+        MDPfiles = os.listdir('mdps')
+        if len(MDPfiles) == 0:
+            flash('The mdps folder, containing required .mdp files, is empty')
+            return render_template("scmdcontinuation.html", N=N)
+
+        nmdpn = 0
+        for file in MDPfiles:
+            if file not in mdpfilename:
+                nmdpn += 1
+
+        if not nmdpn == 0:
+            flash('The required mdps file(s) missing or renamed')
+            return render_template("scmdcontinuation.html", N=N)
+
+        print("found needed .mdp files")
+
+    time.sleep(5)
+
+    # Checking the accuracy of generated folders and files to determine point of continuation
+    printNote("Checking to determine the point of continuation....")
+
+    if 'EM' in cwdirall:
+        emdir = os.listdir('EM')
+        if not 'minzcg.gro' in emdir:
+            flash("This appears to be a Fresh run. Please consider Fresh run instead")
+            return render_template("selectmdstype.html", N=N)
+        else:
+            printNote("Noted: Minimization was successfully completed. Nothing to do")
+    else:
+        printNote("This appears to be a Fresh run. Please consider Fresh run instead")
+        flash("This appears to be a Fresh run. Please consider Fresh run instead")
+        return render_template("selectmdstype.html", N=N)
+
+    if 'NVT' in cwdirall:
+        nvtdir = os.listdir('NVT')
+        if not ('equnvt.gro' in nvtdir and 'equnvt.cpt' in nvtdir):
+            printNote("MDS continuation will begin with NVT Equilibration")
+            response = input("To continue, type YES/y. Otherwise press ENTER to abort: ")
+            if not (response.lower() == "yes" or response.lower() == "y"):
+                os.chdir(gmxDIR)
+                flash("MDS Continuation aborted")
+                return render_template("selectmdstype.html", N=N)
+            else:
+                gmodsScripts.gmodsCONmds.nvtSCmds()
+                os.chdir(gmxDIR)
+                flash('MDS Continuation was Successful completed')
+                return render_template("index.html", N=N, category='success')
+        else:
+            printNote("Noted: NVT Equilibration was successfully completed. Nothing to do")
+    else:
+        printNote("MDS continuation will begin with NVT Equilibration")
+        response = input("To continue, type YES/y. Otherwise press ENTER to end: ")
+        if not (response.lower() == "yes" or response.lower() == "y"):
+            os.chdir(gmxDIR)
+            flash("MDS Continuation aborted")
+            return render_template("selectmdstype.html", N=N)
+        else:
+            gmodsScripts.gmodsCONmds.nvtSCmds()
+            os.chdir(gmxDIR)
+            flash('MDS Continuation was Successful completed')
+            return render_template("index.html", N=N, category='success')
+
+    if 'NPT' in cwdirall:
+        nptdir = os.listdir('NPT')
+        if not ('equnpt.gro' in nptdir and 'equnpt.cpt' in nptdir):
+            printNote("MDS continuation will begin with NPT Equilibration")
+            response = input("To continue, type YES/y. Otherwise press ENTER to end: ")
+            if not (response.lower() == "yes" or response.lower() == "y"):
+                os.chdir(gmxDIR)
+                flash("MDS Continuation aborted")
+                return render_template("selectmdstype.html", N=N)
+            else:
+                gmodsScripts.gmodsCONmds.nptSCmds()
+                os.chdir(gmxDIR)
+                flash('MDS Continuation was Successful completed')
+                return render_template("index.html", N=N, category='success')
+        else:
+            printNote("Noted: NPT Equilibration was successfully completed. Nothing to do")
+    else:
+        printNote("MDS continuation will begin with NPT Equilibration")
+        response = input("To continue, type YES/y. Otherwise press ENTER to end: ")
+        if not (response.lower() == "yes" or response.lower() == "y"):
+            os.chdir(gmxDIR)
+            flash("MDS Continuation aborted")
+            return render_template("selectmdstype.html", N=N)
+        else:
+            gmodsScripts.gmodsCONmds.nptSCmds()
+            os.chdir(gmxDIR)
+            flash('MDS Continuation was Successfully completed')
+            return render_template("index.html", N=N, category='success')
+
+    if 'EMD' in cwdirall:
+        emddir = os.listdir('EMD')
+        if not 'equpmd.gro' in emddir:
+            if not ('equpmd.tpr' in emddir and 'equpmd.cpt' in emddir):
+                printNote("MDS continuation will begin with Equilibration Production run")
+                response = input("To continue, type YES/y. Otherwise press ENTER to end: ")
+                if not (response.lower() == "yes" or response.lower() == "y"):
+                    os.chdir(gmxDIR)
+                    flash("MDS Continuation aborted")
+                    return render_template("selectmdstype.html", N=N, category='warning')
+                else:
+                    gmodsScripts.gmodsCONmds.emdSCmds()
+                    os.chdir(gmxDIR)
+                    flash('MDS Continuation was Successfully completed')
+                    return render_template("index.html", N=N, category='success')
+            else:
+                printNote("Its appears Equilibration Production run was interrupted")
+                response = input("To continue from where its ended, type YES/y. Otherwise press ENTER to continue: ")
+                if not (response.lower() == "yes" or response.lower() == "y"):
+                    os.chdir(gmxDIR)
+                    flash("MDS Continuation aborted")
+                    return render_template("selectmdstype.html", N=N, category='warning')
+                else:
+                    print("Continuation assume interruption in previous run")
+                    os.chdir('EMD')
+                    try:
+                        subprocess.run('gmx mdrun -deffnm equpmd -cpi equpmd.cpt', shell=True)
+                    except subprocess.CalledProcessError as e:
+                        Err2a = os.system('gmx mdrun -deffnm equpmd -cpi equpmd.cpt')
+                        if not Err2a == 0:
+                            raise Exception("Something was not right with EMD continuation. Please check")
+                    printNote("Interrupted EMD was successfuly completed")
+                    os.chdir('../')
+
+                    gmodsScripts.gmodsCONmds.pmdSCmds()
+                    os.chdir(gmxDIR)
+                    flash('MDS Continuation was Successfully completed')
+                    return render_template("index.html", N=N, category='success')
+        else:
+            print("Checking your EMD folder for required files ....")
+            if not 'equpmd.cpt' in emddir:
+                printWarning("equpmd.cpt file is missing in EMD directory. Please check and correct")
+                os.chdir(gmxDIR)
+                flash("MDS Continuation aborted. Missing equpmd.cpt file")
+                return render_template("selectmdstype.html", N=N, category='warning')
+
+            elif "extend.tpr" in emddir:
+                print("Please backup any existing PMD folder if you want to extend")
+                response = input("To extend Equilibration MDS, type YES/y. Otherwise press ENTER to continue: ")
+                if not (response.lower() == "yes" or response.lower() == "y"):
+                    printNote("Noted: Equilibration production was previously completed. Nothing to do")
+                else:
+                    print("Continuation assume extension of previous run")
+                    os.chdir('EMD')
+                    try:
+                        subprocess.run('gmx mdrun -deffnm equpmd -s extend.tpr -cpi equpmd.cpt', shell=True)
+                    except subprocess.CalledProcessError as e:
+                        Err2a = os.system('gmx mdrun -deffnm equpmd -s extend.tpr -cpi equpmd.cpt')
+                        if not Err2a == 0:
+                            raise Exception("Something was not right with EMD continuation. Please check")
+
+                    printNote("EMD Continuation was successfuly completed")
+                    os.chdir('../')
+
+                    gmodsScripts.gmodsCONmds.pmdSCmds()
+                    os.chdir(gmxDIR)
+                    flash('MDS Continuation was Successfully completed')
+                    return render_template("index.html", N=N, category='success')
+            else:
+                printNote("Noted: Equilibration production was previously completed. Nothing to do")
+    else:
+        printNote("MDS continuation will begin with Equilibration Production run")
+        response = input("To continue, type YES/y. Otherwise press ENTER to end: ")
+        if not (response.lower() == "yes" or response.lower() == "y"):
+            os.chdir(gmxDIR)
+            flash("MDS Continuation aborted")
+            return render_template("selectmdstype.html", N=N, category='warning')
+        else:
+            gmodsScripts.gmodsCONmds.emdSCmds()
+            os.chdir(gmxDIR)
+            flash('MDS Continuation was Successfully completed')
+            return render_template("index.html", N=N, category='success')
+
+    if 'PMD' in cwdirall:
+        pmddir = os.listdir('PMD')
+        if not 'pmds.gro' in pmddir:
+            if not ('pmds.tpr' in pmddir and 'pmds.cpt' in pmddir):
+                printNote("MDS continuation will begin with Production MD run")
+                response = input("To continue, type YES/y. Otherwise press ENTER to end: ")
+                if not (response.lower() == "yes" or response.lower() == "y"):
+                    os.chdir(gmxDIR)
+                    flash("MDS Continuation aborted")
+                    return render_template("selectmdstype.html", N=N, category='warning')
+                else:
+                    gmodsScripts.gmodsCONmds.pmdSCmds()
+                    os.chdir(gmxDIR)
+                    flash('PMD Continuation was Successfully completed')
+                    return render_template("index.html", N=N, category='success')
+            else:
+                printNote("Its appears Production MDS run was interrupted")
+                response = input("To continue from where its ended, type YES/y. Otherwise press ENTER to abort: ")
+                if not (response.lower() == "yes" or response.lower() == "y"):
+                    os.chdir(gmxDIR)
+                    flash("MDS Continuation aborted")
+                    return render_template("selectmdstype.html", N=N, category='warning')
+                else:
+                    print("Continuation assume interruption in previous run")
+                    os.chdir('PMD')
+                    try:
+                        subprocess.run('gmx mdrun -deffnm pmds -cpi pmds.cpt', shell=True)
+                    except subprocess.CalledProcessError as e:
+                        Err2b = os.system('gmx mdrun -deffnm pmds -cpi pmds.cpt')
+                        if not Err2b == 0:
+                            raise Exception("Something was not right with Production MDS continuation. Please check")
+                    printNote("Interrupted Production MDS was successfuly completed")
+                    os.chdir(gmxDIR)
+                    flash('MDS Continuation was Successfully completed')
+                    return render_template("index.html", N=N, category='success')
+        else:
+            print("Checking your PMD folder for required files ....")
+            if not 'pmds.cpt' in pmddir:
+                printWarning("pmds.cpt file is missing in the PMD directory. Please check and correct")
+                os.chdir(gmxDIR)
+                flash('Production MDS Continuation aborted. Missing pmds.cpt file')
+                return render_template("selectmdstype.html", N=N, category='warning')
+
+            elif "extend.tpr" in pmddir:
+                printNote("Continuation assume extension of previous run")
+                response = input("To continue from where its ended, type YES/y. Otherwise press ENTER to end: ")
+                if not (response.lower() == "yes" or response.lower() == "y"):
+                    os.chdir(gmxDIR)
+                    flash("MDS process already successfuly completed")
+                    return render_template("index.html", N=N, category='success')
+                else:
+                    os.chdir('PMD')
+                    try:
+                        subprocess.run('gmx mdrun -deffnm pmds -s extend.tpr -cpi pmds.cpt', shell=True)
+                    except subprocess.CalledProcessError as e:
+                        Err2b = os.system('gmx mdrun -deffnm pmds -s extend.tpr -cpi pmds.cpt')
+                        if not Err2b == 0:
+                            raise Exception("Something was not right with PMD continuation. Please check")
+
+                    os.chdir(gmxDIR)
+                    flash("Production MDS Continuation was successfuly completed")
+                    return render_template("index.html", N=N, category='success')
+            else:
+                os.chdir(gmxDIR)
+                flash("MDS process already successfuly completed")
+                return render_template("index.html", N=N, category='success')
+    else:
+        printNote("MDS continuation will proceed with Production MD run")
+        response = input("To continue, type YES/y. Otherwise press ENTER to end: ")
+        if not (response.lower() == "yes" or response.lower() == "y"):
+            os.chdir(gmxDIR)
+            flash("MDS Continuation aborted")
+            return render_template("selectmdstype.html", N=N, category='warning')
+        else:
+            gmodsScripts.gmodsCONmds.pmdSCmds()
+            os.chdir(gmxDIR)
+            flash('MDS Continuation was Successfully completed')
+            return render_template("index.html", N=N, category='success')
 
 if __name__ == "__main__":
     # app.run() for debug
+    from waitress import serve
     try:
-        ui.run()
+        gmods = ui.run()
+        serve(gmods)
     except:
-        ui(app, width=800, height=600, port=1380, window_title="pyGROMODS")
+        gmods = ui(app, width=800, height=600, port=1380, window_title="pyGROMODS")
+        serve(gmods)

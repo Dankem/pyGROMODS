@@ -1,5 +1,13 @@
 {% extends "layout.html" %}
 
+{% block style %}
+	<style>
+		.footer {
+			display: none;
+		}
+	</style>
+{% endblock %}
+
 {% block title %}
     QGuides
 {% endblock %}
@@ -20,7 +28,7 @@
 
 	<p><strong>For User Supplied Ligand(s) Topology(ies):</strong> Ensure the topology files are compatible with your preferred forcefiled (amber, charmm, gromos or opls). All user suppied topology files must have at least the following headings [ moleculetype ], [ atomtypes ] and [ system ] to be successfully used by the platform </p>
 
-	<strong>* FIRST STEP IS TO SELECT THE DESIRED ROUTE</strong><br>
+	<strong>* FIRST STEP: SELECT THE DESIRED ROUTE</strong><br>
 	<strong>FOR RECEPTOR - LIGAND COMPLEXES:</strong><br>
 	<p>This platform provides three routes to follow in generating solvated receptor - ligand complex. The route to use depend on your needs and they are: </p>
 
@@ -33,12 +41,13 @@
 	<strong>FOR PROTEINS AND PEPTIDES:</strong> 
 	<p><strong>PPmore Route:</strong>  To prepare peptides and proteins and generate topology files suitable for molecular dynamic simulation with gromacs. Uploaded proteins must not have any none standard animo acids residues. If the peptide has been converted to protein structure (.pdb), it should be uploaded as protein.</p>
 
-	<strong>* SECOND STEP IS TO UPLOAD THE NECESSARY FILES </strong><br>
-	<strong>* THIRD STEP IS TO RUN THE SETUP </strong><br>
+	<strong>* SECOND STEP: UPLOAD THE NECESSARY FILES </strong><br>
+	<strong>* THIRD STEP: CHOOSE YOUR PREFERRED MODE - INTERACTIVE OR NONINTERACTIVE </strong><br>
+	<strong>* FOURTH STEP: RUN THE SETUP </strong><br>
 
 	<p>Now, a new working directory will be created for each job using the unique ID number and your supplied name. In each directory at each step in the workflow sub-directories will be created for maximum job organization.</p>
 
-	<strong>* FOURTH STEP IS TO CHECK THE GENERATED STRUCTURE AND TOPOLOGY FILES WITH SHORT MDS RUN</strong><br>
+	<strong>* FIFTH STEP: CHECK THE GENERATED STRUCTURE AND TOPOLOGY FILES WITH SHORT MDS RUN</strong><br>
 
 	<p>Thereafter, you can check the suitability of the generated solvated structures and topology files with short MDS run using the supplied sample or your prepared MDP files.</p>
 

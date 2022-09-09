@@ -1,5 +1,24 @@
 {% extends "layout.html" %}
 
+{% block style %}
+	<style>
+		.footer {
+			display: none;
+		}
+	</style>
+{% endblock %}
+
+{% block script %}
+	<script>
+		function submitDisabled() {
+			d = document.getElementById("button");
+			if (d.disabled === false) {
+				d.disabled = true;
+			}
+		}
+	</script>
+{% endblock %}
+
 {% block title %}
     MDS Setup
 {% endblock %}
@@ -17,36 +36,32 @@
 
   <h2> It's time to upload the necessary files</h2><br>
 
-  <form method=post enctype=multipart/form-data>
+  <form onsubmit="submitDisabled()"class="form-group" action="/scmds" method=post enctype=multipart/form-data>
     Multiple files from gmxmds directory earlier generated can be uploaded
     <label for="mdsfiles">GMXMDS File(s):</label><br>
-    <input type="file" name="mdsfiles[]" multiple="true" autocomplete="off" required><br><br>
+    <input type="file" name="mdsfiles[]" class="form-control" multiple="true" autocomplete="off" required><br><br>
 	
-	<div id="gap">
-		<p> </p>
-	</div>
-
 	MDP files has to be uploaded individually. Check Sample folder in your selelcted Route generated workspace directory for samples to help prepare yours
 	<br><br>
     <label for="minzsd">MinimizationSD:</label><br>
-    <input type="file" name="minzsd"><br><br>
+    <input type="file" name="minzsd" class="form-control"><br><br>
 
     <label for="minzcg">MinimizationCG:</label><br>
-    <input type="file" name="minzcg"><br><br>
+    <input type="file" name="minzcg" class="form-control"><br><br>
 
     <label for="equnvt">EquilibrationNVT:</label><br>
-    <input type="file" name="equnvt"><br><br>
+    <input type="file" name="equnvt" class="form-control"><br><br>
 
     <label for="equnpt">EquilibrationNPT:</label><br>
-    <input type="file" name="equnpt"><br><br>
+    <input type="file" name="equnpt" class="form-control"><br><br>
 
     <label for="equpmd">EquilibrationPMD:</label><br>
-    <input type="file" name="equpmd"><br><br>
+    <input type="file" name="equpmd" class="form-control"><br><br>
 
     <label for="pmds">ProductionMD:</label><br>
-    <input type="file" name="pmds"><br><br>
+    <input type="file" name="pmds" class="form-control"><br><br>
 
-    <input type="submit" value="Upload">
+    <input id="button" type="submit" value="Upload">
   </form>
 
   <br>

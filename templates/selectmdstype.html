@@ -1,0 +1,53 @@
+{% extends "layout.html" %}
+
+{% block style %}
+	<style>
+		.footer {
+			display: none;
+		}
+	</style>
+{% endblock %}
+
+{% block script %}
+	<script>
+		function submitDisabled() {
+			d = document.getElementById("button");
+			if (d.disabled === false) {
+				d.disabled = true;
+			}
+		}
+	</script>
+{% endblock %}
+
+{% block title %}
+    MDS Approach Selection
+{% endblock %}
+
+{% block main %}
+  <h1>Select Your Preferred Approach</h1>	
+	<h4>The available approaches are:</h4>
+
+	<ol>
+		<li>Fresh</li>
+		<li>Continuation</li>
+	</ol>
+
+	The "Fresh" can be used to start the process from the beginning, while the "Continuation" can be used to continue the process from where its stopped. 
+
+	Choose one from the dropdown menus below<br><br>
+
+	<form onsubmit="submitDisabled()" class="form-group" action="/selectmdstype" method="post">
+		<label for="setmdstype">Choose your preferred approach</label>
+		<select class="form-select" name="mdstype" id="mdstype" style="width: 50%;">
+			<option value="None">Select</option>
+			<option value="Fresh">Fresh</option>
+			<option value="Continuation">Continuation</option>
+		</select>
+		<br><br>
+
+		<input id="button" type="submit" value="Submit">
+	</form>
+
+<p>Click the "Submit" button</p> 
+
+{% endblock %}

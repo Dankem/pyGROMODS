@@ -42,6 +42,33 @@ import random
 import string
 import math
 from colored import fore, back, style
+from tkinter import Tk, filedialog
+from inputimeout import inputimeout, TimeoutOccurred
+from pytimedinput import timedInput
+
+
+def tinput(message, timeout, default):
+	def timer2(message, timeout, default):
+		try:
+			userinput = inputimeout(prompt=message, timeout=timeout)
+		except TimeoutOccurred:
+			userinput = default
+		return userinput
+
+	def timer1(message, timeout, default):
+		userinput, texpired = timedInput(message, timeout=timeout)
+		if(texpired):
+			userinput = default
+			return userinput
+		else:
+			return userinput
+
+	try:
+		Response = timer1(message, timeout, default)
+	except:
+		Response = timer2(message, timeout, default)
+
+	return Response
 
 
 def printWarning(message):
@@ -50,6 +77,58 @@ def printWarning(message):
 
 def printNote(message):
 	print(fore.PURPLE_4B + back.LIGHT_YELLOW + message + style.RESET)
+
+
+def select_folder(title):
+	root = Tk()
+	root.withdraw()
+	root.attributes('-topmost', True)
+	sFolder = ""
+
+	while True:
+		sFolder = filedialog.askdirectory(title=title, initialdir=".")
+		root.destroy()
+		os.path.normpath(sFolder)
+		if os.path.isdir(sFolder):
+			break
+		elif os.path.isfile(sFolder):
+			print("You must select folder, not a file")
+			continue
+		else:
+			print("The path you specify does not exist")
+			continue
+
+	return sFolder
+
+
+def gmxtop():
+	""" Scan for and obtain the list of available forcefields based on install version of gromacs """
+
+	# Get the absolute path to the forcefield directory and get the awailabe ff
+	gmxtopdir = " "
+	gmxtopff = []
+	title = "Select Gromacs tops Directory"
+	# watermodel = ['spc', 'spce', 'tip3p', 'tip4p', 'tip5p', 'tips3p']
+
+	try:
+		gmxtopdir = os.path.join(os.environ.get('GMXDATA'), 'top')
+	except:
+		print("We are unable to autodetect your forcefield directory")
+		print("Please specify the directory using the open folder explorer")
+		print("Usually /path-to-gromacs/share/gromacs/top")
+		while True:
+			gmxtopdir = select_folder(title)
+			if not os.path.isdir(gmxtopdir):
+				print("Directory you specified does not exist. Please check and try again")
+			else:
+				break
+
+	listtopdir = os.listdir(gmxtopdir)
+	for fdir in listtopdir:
+		if Path(fdir).suffix == ".ff":
+			gmxtopff.append(Path(fdir).stem)
+
+	return gmxtopff, gmxtopdir
 
 
 def ligtopol(ligand, name):
@@ -93,14 +172,10 @@ def ligtopol(ligand, name):
 		LEr2c = os.system('mv LIGy.* LIG.inpcrd')
 		LEr2d = os.system('mv LIGz_new.* LIGnew.pdb')
 		if not (LEr2a == 0 and LEr2b == 0 and LEr2c == 0 and LEr2d == 0):
-			print(ligand, "preparation with tleap failed. It is advisable to abort, make corrections and rerun")
-			response = input("To abort type YES/y or press ENTER to continue: ")
-			if response.lower() == "yes" or response.lower() == "y":
-				raise Exception("Process Aborted. Make necessary corrections and restart")
-			else:
-				flgro = "f" + liggro
-				fltop = "f" + ligtop
-				return flgro, fltop
+			print(ligand, "preparation with tleap failed. The process may most likely fail")
+			flgro = "f" + liggro
+			fltop = "f" + ligtop
+			return flgro, fltop
 
 	time.sleep(5)
 
@@ -113,14 +188,10 @@ def ligtopol(ligand, name):
 		time.sleep(5)
 		LEr3a = os.system('acpype.py -p LIG.prmtop -x LIG.inpcrd -a amber2')
 		if not LEr3a == 0:
-			print(ligand, "preparation with acpype failed. It is advisable to abort, check, make corrections and rerun")
-			response = input("To abort type YES/y or press ENTER to continue: ")
-			if response.lower() == "yes" or response.lower() == "y":
-				raise Exception("Process Aborted. Make necessary corrections and restart")
-			else:
-				flgro = "f" + liggro
-				fltop = "f" + ligtop
-				return flgro, fltop
+			print(ligand, "preparation with acpype failed. Please check, make corrections and rerun. The process will most likely fail")
+			flgro = "f" + liggro
+			fltop = "f" + ligtop
+			return flgro, fltop
 
 	try:
 		subprocess.run('mv *_GMX.gro ' + liggro, shell=True, check=True)
@@ -150,23 +221,21 @@ def ligtopol(ligand, name):
 	return liggro, ligtop
 
 
-def receptopol(receptor, name):
+def receptopol(receptor, name, selff, selwater):
 	""" Generating receptor topology and gro files """
 	recpdb = name + ".pdb"
 	rectop = name + ".top"
 
 	try:
-		subprocess.run('gmx pdb2gmx -f ' + receptor + ' -p ' + rectop + ' -o ' + recpdb + ' -ignh', shell=True, check=True)
+		subprocess.run('gmx pdb2gmx -f ' + receptor + ' -p ' + rectop + ' -o ' + recpdb  + ' -ff ' + selff + ' -water ' + selwater + ' -ignh', shell=True, check=True)
 	except subprocess.CalledProcessError as e:
 		print(e)
 		printWarning("Something went wrong. Check above error message. Trying again ....")			
 		time.sleep(5)
-		REr1a = os.system('gmx pdb2gmx -f ' + receptor + ' -p ' + rectop + ' -o ' + recpdb + ' -ignh')
+		REr1a = os.system('gmx pdb2gmx -f ' + receptor + ' -p ' + rectop + ' -o ' + recpdb + ' -ff ' + selff + ' -water ' + selwater + ' -ignh')
 		if not REr1a == 0:
-			print(receptor, "preparation failed. It is advisable to abort the process, make corrections and rerun")
-			response = input("To abort type YES/y or press ENTER to continue: ")
-			if response.lower() == "yes" or response.lower() == "y":
-				raise Exception("Process Aborted. Make necessary corrections and restart")
+			print(receptor, "preparation failed. The process can't continue. Make corrections and rerun")
+			raise Exception("Process Aborted. Make necessary corrections and restart")
 
 	return rectop, recpdb, 'posre.itp'
 
@@ -339,29 +408,52 @@ def pdbcatogro():
 	return 'conComplex.gro', 'conComplex.pdb'
 
 
-def solvation(grocomplex, topol):
-	""" Solvate the generated complex in preparation for MDS """
-	# Create needed backup for error checkup when necessary
-	for fchk in os.listdir():
-		if fchk == 'check' or fchk == 'check1' or fchk == 'check2':
-			bk = '#'
-			while True:
-				newchk = bk + fchk + bk
-				if newchk in os.listdir():
-					bk = bk + '#'
-				else:
-					os.rename(fchk, newchk)
-					break
+def defaults1():
+	""" If needed, some default values to be used henceforth will be generated """
+	# Define isfloat() function to use
+	def isfloat(num):
+		try:
+			float(num)
+			return True
+		except ValueError:
+			return False
 
 	# Set needed variables
-	select_topol = topol
-	select_cs = "spc216"
+	change_bt = "triclinic"
+	change_d = 0.1
+	timedout = 60
 
-	if not 'notipw' in os.listdir():
-		os.system('touch notipw')
-	else:
-		os.remove('notipw')
-		os.system('touch notipw')
+	printNote("Only one of triclinic, cubic, dodecahedron or octahedron is acceptable for -bt")
+	printNote("Only digit/float values are acceptable for -d and timeout")
+
+	while True:
+		new_timedout = input("Change timeout to: ")
+		new_d = input("Change -d to: ")
+		new_bt = input("Change -bt to: ")
+		if new_d == " " or new_bt == " " or new_timedout == " " or new_d == "" or new_bt == "" or new_timedout == "":
+			print("You must supply digit value for -d and timeout, and either retain triclinic or change -bt to cubic, dodecahedron or octahedron to proceed")
+			continue
+		elif not (isfloat(new_d) == True and new_timedout.isdigit() == True and new_bt.isalpha() == True):
+			print("You must supply a float value for -d, digit for timeout, and only one of triclinic, cubic, dodecahedron or octahedron is acceptable for -bt to proceed")
+			continue
+		elif not (new_bt.lower() == "triclinic" or new_bt.lower() == "dodecahedron" or new_bt.lower() == "octahedron" or new_bt.lower() == "cubic"):
+			print("Only one of triclinic, cubic, dodecahedron or octahedron is acceptable for -bt")
+			continue
+		else:
+			break
+
+	change_bt = new_bt
+	change_d = float(new_d)
+	timedout = int(new_timedout)
+
+	return change_bt, change_d, timedout  
+
+
+def defaults2(topol):
+	""" If needed, some default values will be extracted from topol file to update defaults list """
+	# Set needed variables
+	select_topol = topol
+	select_water = "none"
 
 	# Check topol file to identify the water model used
 	Topen = open(topol, "r")
@@ -379,53 +471,41 @@ def solvation(grocomplex, topol):
 		Topen.seek(0)
 		Twateritp = Tread[nx].split()[1].split('"')[1].split('/')[1]
 		Twater = Twateritp.split('.')[0]
+		select_water = Twater
+		return select_water
+	else:
+		return select_water
 
-		print("The detected water model for this setup is:", Twater)
-		avtipw = "av_" + Twater
-		os.rename('notipw', avtipw)
 
+def solvation(grocomplex, topol, selwater, selbt, seld):
+	""" Solvate the generated complex in preparation for MDS """
+	# Create needed backup for error checkup when necessary
+	for fchk in os.listdir():
+		if fchk == 'check' or fchk == 'check1' or fchk == 'check2':
+			bk = '#'
+			while True:
+				newchk = bk + fchk + bk
+				if newchk in os.listdir():
+					bk = bk + '#'
+				else:
+					os.rename(fchk, newchk)
+					break
+
+	# Set needed variables
+	select_topol = topol
+	select_cs = "spc216"
+	Twater = selwater
+
+	change_d = seld
+	change_bt = selbt
+
+	if not Twater == "none":
 		if Twater == "tip4p" or Twater == "tip4pew":
 			select_cs = "tip4p"
 		elif Twater == "tip5p" or Twater == "tip5pe":
 			select_cs = "tip5p"
 		else:
 			select_cs = "spc216"
-
-		printNote("NOTE: For editconf command, -d (0.1) and -bt (cubic) are used here as defaults.")
-		printNote("You may wish to alter the value of -d AND/OR change -bt to dodecahedron or octahedron box")
-
-		change_d = 0.1
-		change_bt = "cubic"
-
-		print("To change -d AND/OR -bt options, type YES/y")
-		print("Otherwise press ENTER to continue with default values")
-
-		response = input("Response: ")
-
-		if not (response.lower() == "yes" or response.lower() == "y"):
-			change_d = 0.1
-			change_bt = "cubic"
-
-		else:
-			while True:
-				new_d = input("Change -d to: ")
-				new_bt = input("Change -bt to: ")
-				if new_d == " " or new_bt == " ":
-					print("You must supply digit value for -d and either retain cubic for -bt or change to dodecahedron or octahedron to continue")
-					continue
-				elif not (new_d.isdigit() == True or new_bt.isalpha() == True):
-					print("You must supply digit value for -d and either retain cubic for -bt or change to dodecahedron or octahedron to continue")
-					continue
-				elif not (new_bt.lower() == "dodecahedron" or new_bt.lower() == "octahedron" or new_bt.lower() == "cubic"):
-					print("You must either retain cubic for -bt or change to dodecahedron or octahedron to continue")
-					continue
-				elif new_d == "" or new_bt == "":
-					print("You must supply digit value for -d and either retain cubic for -bt or change to dodecahedron or octahedron to continue")
-				else:
-					break
-
-			change_d = float(new_d)
-			change_bt = new_bt
 
 		printNote("If successful, It's important to view and check the appropriateness of the generated fsolvated.gro")
 		time.sleep(5)
@@ -515,8 +595,8 @@ def solvation(grocomplex, topol):
 	else:
 		printNote("No water model could be detected for this setup. Therefore, no solvation can be performed")
 		printNote("As such 'ufsolvate.gro' will be returned instead of 'fsolvated.gro' file")
-		os.system('gmx editconf -f ' + grocomplex + ' -o fsolvated.gro')
-		return 'fsolvated.gro'
+		os.system('gmx editconf -f ' + grocomplex + ' -o ufsolvate.gro')
+		return 'ufsolvate.gro'
 
 def insertdetails(file1, file2, identifier):
 	""" Inserting new details into any part of already created file """

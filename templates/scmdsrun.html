@@ -1,31 +1,64 @@
 {% extends "layout.html" %}
 
+{% block style %}
+	<style>
+		.footer {
+			display: none;
+		}
+	</style>
+{% endblock %}
+
+{% block script %}
+	<script>
+		function submitDisabled() {
+			d = document.getElementById("button");
+			if (d.disabled === false) {
+				d.disabled = true;
+			}
+		}
+	</script>
+{% endblock %}
+
 {% block title %}
     MDS Run
 {% endblock %}
 
 {% block main %}
   <h1>Test or Full Scale MD Simulation</h1>
-    
-	<div style="letter-spacing:4px;">
-		<p><strong> Having problem compiling opencl for MDS run? Try the following:</strong></p>
-		<p> 1). Go to opencl directory, ususally "\gromacs\share\gromacs\opencl\gromacs" and edit files in each subdirectory by specifying Absolute path to all '#include' files not found in that subdirectory. Then Click MDSrun below</p>
-		<p> 2). Alternatively, click ACTIVATE button below to copying OpenCL headers to MDS working subdirectories. After which you can click MDSrun for simulation</p>
-			<button class="domnav domformat">
-				<a href="/openclheaders" class="domitem domnav-button">ACTIVATE</a>
-			</button>
-	</div>
+	{% if A == 0 %}
+		<div style="letter-spacing:4px;">
+			<p><strong> Having problem compiling opencl for MDS run? Try the following:</strong></p>
+			<p> 1). Go to opencl directory, ususally "\gromacs\share\gromacs\opencl\gromacs" and edit files in each subdirectory by specifying Absolute path to all '#include' files not found in that subdirectory. Then Click MDSrun below</p>
+			<p> 2). Alternatively, select YES below to copying OpenCL headers to MDS working subdirectories. After which you can click MDSrun for simulation</p>
 
-	<br>
+			<p><strong><i>Please maintain the default NO, except you're expereincing the problem</i></strong></p>
+		</div>
 
-	<div style="letter-spacing:4px;">
-		<p><strong> To test run your generated solvated complex or perform full Molecular Dynamic Simulation, Click MDSrun button below </strong></p>
-			<button class="domnav domformat">
-				<a href="/runscmds" class="domitem domnav-button">MDSrun</a>
-			</button>
-	</div>
+		<form onsubmit="submitDisabled()" class="form-group" action="/openclactivate" method="post">
+			<label for="activate">OpenCL Activation</label><br>
+			<select class="form-select" name="activate" id="activate"  style="width: 25%;" aria-describedby="userHelp"/>
+				<option value="NO">NO</option>
+				<option value="YES">YES</option>
+			</select>
+			<div id="userHelp" class="form-text">The default is NO</div><br>
 
-	<br>
+			<input id="button" type="submit" value="submit">
+		</form>
 
-	<p>THANK YOU</p>
+		<br>
+		<p>THANK YOU</p>
+
+	{% elif A > 0 %}
+		<div style="letter-spacing:4px;">
+			<p><strong> To test run your generated solvated complex or perform full Molecular Dynamic Simulation, Click MDSrun button below </strong></p>
+				<button class="domnav domformat">
+					<a href="/runscmds" class="domitem domnav-button">MDSrun</a>
+				</button>
+		</div>
+
+		<br>
+
+		<p>THANK YOU</p>
+
+	{% endif %}
 {% endblock %}

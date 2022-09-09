@@ -44,7 +44,6 @@ main
 .footer
 {
     position: relative;
-    display: inline-block;
     text-align: center;
     background-color: #D3D3D3;
     left: 0;

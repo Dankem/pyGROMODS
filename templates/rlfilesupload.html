@@ -1,5 +1,24 @@
 {% extends "layout.html" %}
 
+{% block style %}
+	<style>
+		.footer {
+			display: none;
+		}
+	</style>
+{% endblock %}
+
+{% block script %}
+	<script>
+		function submitDisabled() {
+			d = document.getElementById("button");
+			if (d.disabled === false) {
+				d.disabled = true;
+			}
+		}
+	</script>
+{% endblock %}
+
 {% block title %}
     Upload Files
 {% endblock %}
@@ -7,19 +26,19 @@
 {% block main %}
   <h1>Upload Receptor, Ligand (and user supplied Ligand topology, if required) Files</h1>
 	<p>Before you upload, please read the QGuides and ensure ligand and receptor have been properly prepared</p>
-    <form method=post enctype=multipart/form-data>
+    <form onsubmit="submitDisabled()" class="form-group" method=post enctype=multipart/form-data>
 		{% if (N == 1 and F == 0) or (N == 2 and F == 0) %}
 			* One or more ligand files can be uploaded per receptor<br>
 			* Ligand(s) file(s) must be in .pdb or .mol2 format<br>
 			* Receptor file must be .pdb format<br><br>
 
 			<label for="Lfiles">Ligand(s) File(s):</label><br>
-			<input type="file" name="Lfiles[]" multiple="true" autocomplete="off" required><br><br>
+			<input type="file" class="form-control" name="Lfiles[]" multiple="true" autocomplete="off" required><br><br>
 
 			<label for="Rfile">Receptor File:</label><br>
-			<input type="file" name="Rfile"><br><br>
+			<input type="file" class="form-control" name="Rfile"><br><br>
 
-			<input type=submit value=Upload>
+			<input id="button" type=submit value=Upload>
 
 		{% elif (N == 1 and F == 1) or (N == 2 and F == 1) %}
 			* One or more ligand structure and topology files can be uploaded per receptor<br>
@@ -28,15 +47,15 @@
 			* Ligand topology should be named similar to the ligand structure they're meant for<br><br>
 
 			<label for="Lfiles">Ligand(s) File(s):</label><br>
-			<input type="file" name="Lfiles[]" multiple="true" autocomplete="off" required><br><br>
+			<input type="file" class="form-control" name="Lfiles[]" multiple="true" autocomplete="off" required><br><br>
 
 			<label for="Ffiles">Ligand(s) Topology(ies):</label><br>
-			<input type="file" name="Ffiles[]" multiple="true" autocomplete="off" required><br><br>
+			<input type="file" class="form-control" name="Ffiles[]" multiple="true" autocomplete="off" required><br><br>
 
 			<label for="Rfile">Receptor File:</label><br>
-			<input type="file" name="Rfile"><br><br>
+			<input type="file" class="form-control" name="Rfile"><br><br>
 
-			<input type=submit value=Upload>
+			<input id="button" type=submit value=Upload>
 
 		{% elif N == 3 and F == 0 %}
 			* One or more Matching pairs of receptor and ligand (at a time) can be uploaded<br>
@@ -44,7 +63,7 @@
 			* Please first reselect your preferred group of forcefield for each pair of receptor and ligand<br><br>
 
 			<label for="setforcefield">Choose your preferred group of forcefield</label>
-			<select name="gmodsff" id="gmodsff">
+			<select class="form-select" name="gmodsff" id="gmodsff">
 				<option value="None">No Selection</option>
 				<option value="Amber">Amber</option>
 				<option value="Charmm">Charmm</option>
@@ -53,13 +72,13 @@
 			</select>
 			<br><br>
 
-			<label for="Lfile">Ligand(s) File(s):</label><br>
-			<input type="file" name="Lfile"><br><br>
+			<label for="Lfile">Ligand File:</label><br>
+			<input type="file" class="form-control" name="Lfile"><br><br>
 
 			<label for="Rfile">Receptor File:</label><br>
-			<input type="file" name="Rfile"><br><br>
+			<input type="file" class="form-control" name="Rfile"><br><br>
 
-			<input type="submit" value="Upload">
+			<input id="button" type="submit" value="Upload">
 
 		{% elif N == 3 and F == 1 %}
 			* One or more Matching pairs of receptor and ligand with ligand topology can be uploaded<br>
@@ -69,7 +88,7 @@
 			* Please first reselect your preferred group of forcefield for each pair of receptor and ligand<br><br>
 
 			<label for="setforcefield">Choose your preferred group of forcefield</label>
-			<select name="gmodsff" id="gmodsff">
+			<select class="form-select" name="gmodsff" id="gmodsff">
 				<option value="None">No Selection</option>
 				<option value="Amber">Amber</option>
 				<option value="Charmm">Charmm</option>
@@ -78,33 +97,33 @@
 			</select>
 			<br><br>
 
-			<label for="Lfile">Ligand(s) File(s):</label><br>
-			<input type="file" name="Lfile"><br><br>
+			<label for="Lfile">Ligand File:</label><br>
+			<input type="file" class="form-control" name="Lfile"><br><br>
 
-			<label for="Ffile">Ligand(s) Topology(ies) File(s):</label><br>
-			<input type="file" name="Ffile"><br><br>
+			<label for="Ffile">Ligand Topology File:</label><br>
+			<input type="file" class="form-control" name="Ffile"><br><br>
 
 			<label for="Rfile">Receptor File:</label><br>
-			<input type="file" name="Rfile"><br><br>
+			<input type="file" class="form-control" name="Rfile"><br><br>
 
-			<input type="submit" value="Upload">
+			<input id="button" type="submit" value="Upload">
 
 		{% elif N == 4 and F == 2 %}
 			* One or multipe Peptides sequence files in .in format can be uploaded once<br>
 
 			<label for="Ptfile">Peptide(s) File(s):</label><br>
-			<input type="file" name="Ptfiles[]" multiple="true" autocomplete="off" required><br><br>
+			<input type="file" class="form-control" name="Ptfiles[]" multiple="true" autocomplete="off" required><br><br>
 
-			<input type="submit" value="Upload">
+			<input id="button" type="submit" value="Upload">
 
 		{% elif N == 4 and F == 3 %}
 			* One or multipe Proteins files in .pdb format can be uploaded once<br>
 			* Please first prepare proteins by removing waters and other non-standard residues<br><br>
 
 			<label for="Prfile">Protein(s) File(s):</label><br>
-			<input type="file" name="Prfiles[]" multiple="true" autocomplete="off" required><br><br>
+			<input type="file" class="form-control" name="Prfiles[]" multiple="true" autocomplete="off" required><br><br>
 
-			<input type="submit" value="Upload">
+			<input id="button" type="submit" value="Upload">
 
 		{% endif %}
    </form>

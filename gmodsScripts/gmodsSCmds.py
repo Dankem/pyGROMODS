@@ -41,20 +41,25 @@ import random
 import string
 import math
 import glob
+from tkinter import Tk, filedialog
+from inputimeout import inputimeout, TimeoutOccurred
+from pytimedinput import timedInput
 
-from gmodsScripts.gmodsHelpers import printWarning, printNote, cleanup
+from gmodsScripts.gmodsHelpers import printWarning, printNote, tinput, select_folder, gmxtop, cleanup
 
-def SCmds():
+scriptDIRa = os.path.abspath(os.path.dirname(sys.argv[0]))
+
+def SCmds(appDIR, gmxDIR):
+    # Set some environment variables
+    scriptDIR = appDIR
+    GMX_MDS = gmxDIR
+
+    print("User MDS working directory set to: ", GMX_MDS)
+
     # Set global activation variables to include opncl headers in work subdirectories
     opencl_activate = 0
 
-    # Set some environment variables
-    scriptDIR = os.path.abspath(os.path.dirname(sys.argv[0]))
-
-    GMX_MDS=Path.cwd()
-    print("Current Working Directory set to ", GMX_MDS)
-
-    # Check existence of required folders and moledular dynamic parameter (.mdp) files
+    # Check existence of required folders and molecular dynamic parameter (.mdp) files
     mdshomedir = os.path.join(GMX_MDS, 'MDSHOME')
     if not os.path.isdir(mdshomedir):
         raise Exception("MDSHOME folder missing. Run MDS setup and populate the folder")
@@ -64,7 +69,7 @@ def SCmds():
         opencl_activate = 0
     else:
         openclfiles = os.listdir(opencldir)
-        if openclfiles == 0:
+        if len(openclfiles) == 0:
             opencl_activate = 0
         else:
             opencl_activate += 1
@@ -107,45 +112,32 @@ def SCmds():
 
     if 'posre.itp' not in mdsfiles:
         printWarning("posre.itp is missing. If defined -DPOSRE in .mdp file, MDS will fail without it.")
-        response = input("To continue without it, type YES/y or press ENTER to abort: ")
+        response = tinput("To continue without it, type YES/y or press ENTER to abort: ", 10, "y")
         if not (response.lower() == "yes" or response.lower() == "y"):
             raise Exception("posre.itp is missing, please upload from mdsetup page or follow manual setup")
 
     if 'posre_udp.itp' not in mdsfiles:
         printWarning("posre_udp.itp, a user generated restraint file, is missing. If defined -DPOSRE_UDP in .mdp file, MDS will fail without it.")
-        response = input("To continue without it, type YES/y or press ENTER to abort: ")
+        response = tinput("To continue without it, type YES/y or press ENTER to abort: ", 10, "y")
         if not (response.lower() == "yes" or response.lower() == "y"):
             raise Exception("posre_udp.itp is missing, please upload from mdsetup page")
 
     if 'posre.itp' in mdsfiles and 'posre_udp.itp' in mdsfiles:
         printNote("Both posre.itp and posre_udp.itp restraint files are present")
-        printNote("If defined -DPOSRE in mdp file(s), posre.itp will be used")
-        printNote("To use posre_udp.itp instead, type YES/y to backup posre.itp and rename posre_udp.itp to posre.itp")
-        response = input("Response YES/y, otherwise press ENTER to continue: ")
-        if response.lower() == "yes" or response.lower() == "y":
-            os.rename(os.path.join(gmxmdsdir, 'posre.itp'), os.path.join(gmxmdsdir, 'posre.bk'))
-            os.rename(os.path.join(gmxmdsdir,'posre_udp.itp'), os.path.join(gmxmdsdir, 'posre.itp'))
-            print("\n")
 
-        else:
-            printNote("If defined -DPOSRE_UDP, posre_udp.itp will be used")
-            printNote("To use posre.itp instead, type YES/y to backup posre_udp.itp and rename posre.itp to posre_udp.itp")
-            response = input("Response YES/y, otherwise press ENTER to continue: ")
-            if response.lower() == "yes" or response.lower() == "y":
-                os.rename(os.path.join(gmxmdsdir, 'posre_udp.itp'), os.path.join(gmxmdsdir, 'posre_udp.bk'))
-                os.rename(os.path.join(gmxmdsdir,'posre.itp'), os.path.join(gmxmdsdir, 'posre_udp.itp'))
+        printNote("If defined -DPOSRE in mdp file(s), posre.itp will be used. To use posre_udp.itp instead, backup posre.itp and rename posre_udp.itp to posre.itp")
+
+        printNote("If defined -DPOSRE_UDP in mdp file(s), posre_udp.itp will be used. To use posre.itp instead, backup posre_udp.itp and rename posre.itp to posre_udp.itp")
 
     if 'topol.top' not in mdsfiles:
         printWarning("topol.top file is missing")
-        printNote("Please include the file in your working folder - mdsgmx, or if need be rename your generated top file to topol.top and type YES/y to continue or press ENTER to abort")
-        response = input("Response: ")
-        if not (response.lower() == "yes" or response.lower() == "y"):
-            raise Exception("Please upload necessary files from mdsetup page")
+        printNote("Please include the file in your working folder - mdsgmx, or if need be rename your generated top file to topol.top and run the mdsetup again to upload all required files")
+        raise Exception("topol.top file is missing. Please upload necessary files from mdsetup page")
 
     if 'LIGS_at.itp' not in mdsfiles and 'LIGS_mt.itp' not in mdsfiles:
         printWarning("Incomplete files. Important Ligand(s) topology file(s) are missing")
-        printNote("This may not affect the MDS if using tlptopol.top instead of topol.top. In that case tlptopol.top would have been renamed to topol.top. Or if you are working with protein and peptides without ligands")
-        response = input("To continue without these files, type YES/y or press ENTER to abort: ")
+        printNote("This may not affect the MDS if using tlptopol.top instead of topol.top. In that case tlptopol.top would have been renamed to topol.top. Also, working with protein and peptides without ligands may not be affected")
+        response = tinput("To continue without these files, type YES/y or press ENTER to abort: ", 10, "y")
         if not (response.lower() == "yes" or response.lower() == "y"):
             raise Exception("Please upload necessary files from mdsetup page")
 
@@ -195,7 +187,7 @@ def SCmds():
     maxwarn = 0
     print("The default value for -maxwarn is 0. You may wish to increase this as needed")
     print("To change this value, type YES/y. Otherwise, press ENTER to continue with the default")
-    response = input("Response: ")
+    response = tinput("Response: ", 30, "n")
     if response.lower() == "yes" or response.lower() == "y":
         while True:
             maxwarn = input("Change maxwarn to: ")
@@ -240,7 +232,7 @@ def SCmds():
         subprocess.run('gmx grompp -f ../mdps/minzsd.mdp -c ../fsolvated.gro -p ../topol.top -o minzsd.tpr -maxwarn ' + str(maxwarn), shell=True)
     except subprocess.CalledProcessError as e:
         print(e)
-        print("Something went wrong with above error. Trying again...")		
+        print("Something went wrong with above error. Trying again...")
         Err1a = os.system('gmx grompp -f ../mdps/minzsd.mdp -c ../fsolvated.gro -p ../topol.top -o minzsd.tpr -maxwarn ' + str(maxwarn))
         if not Err1a == 0:
             print("Generating needed files failed. Please check error message")
@@ -263,7 +255,7 @@ def SCmds():
         subprocess.run('gmx grompp -f ../mdps/minzcg.mdp -c minzsd.gro -p ../topol.top -o minzcg.tpr -maxwarn ' + str(maxwarn), shell=True)
     except subprocess.CalledProcessError as e:
         print(e)
-        print("Something went wrong with above error. Trying again...")		
+        print("Something went wrong with above error. Trying again...")
         Err1c = os.system('gmx grompp -f ../mdps/minzcg.mdp -c minzsd.gro -p ../topol.top -o minzcg.tpr -maxwarn ' + str(maxwarn))
         if not Err1c == 0:
             print("Generating needed files failed. Please check error message")
@@ -279,7 +271,7 @@ def SCmds():
         printWarning("Conjugate Gradient Minimization failed. Please check error message")
         printWarning("There were errors during Minimization Phases")
         printNote("It is advisable to abort the processs, check your files and errors and rerun")
-        response = input("To abort type YES/y. Otherwise process will continue anyway ")
+        response = tinput("To abort type YES/y. Otherwise process will continue anyway ", 10, "y")
         if response.lower() == "yes" or response.lower() == "y":
             raise Exception("Process Aborted. Make necessary corrections and restart")
     else:
@@ -310,7 +302,7 @@ def SCmds():
         subprocess.run('gmx grompp -f ../mdps/equnvt.mdp -c ../EM/minzcg.gro -r ../EM/minzcg.gro -p ../topol.top -o equnvt.tpr -maxwarn ' + str(maxwarn), shell=True)
     except subprocess.CalledProcessError as e:
         print(e)
-        print("Something went wrong with above error. Trying again...")		
+        print("Something went wrong with above error. Trying again...")
         Err2a = os.system('gmx grompp -f ../mdps/equnvt.mdp -c ../EM/minzcg.gro -r ../EM/minzcg.gro -p ../topol.top -o equnvt.tpr -maxwarn ' + str(maxwarn))
         if not Err2a == 0:
             print("Generating needed files for NVT failed. Please check error message")
@@ -325,7 +317,7 @@ def SCmds():
     if not ('equnvt.tpr' in os.listdir() or 'equnvt.gro' in os.listdir()):
         printWarning("There were errors during Constant Volume Equilibration Phase")
         printNote("It is advisable to abort the processs, check your files and errors and rerun")
-        response = input("To abort type YES/y. Otherwise process will continue anyway ")
+        response = tinput("To abort type YES/y. Otherwise process will continue anyway ", 10, "y")
         if response.lower() == "yes" or response.lower() == "y":
             raise Exception("Process Aborted. Make necessary corrections and restart")
     else:
@@ -355,7 +347,7 @@ def SCmds():
         subprocess.run('gmx grompp -f ../mdps/equnpt.mdp -c ../NVT/equnvt.gro -r ../NVT/equnvt.gro -p ../topol.top -t ../NVT/equnvt.cpt -o equnpt.tpr -maxwarn ' + str(maxwarn), shell=True)
     except subprocess.CalledProcessError as e:
         print(e)
-        print("Something went wrong with above error. Trying again...")		
+        print("Something went wrong with above error. Trying again...")
         Err3a = os.system('gmx grompp -f ../mdps/equnpt.mdp -c ../NVT/equnvt.gro -r ../NVT/equnvt.gro -p ../topol.top -t ../NVT/equnvt.cpt -o equnpt.tpr -maxwarn ' + str(maxwarn))
         if not Err3a == 0:
             print("Generating needed files for NPT failed. Please check error message")
@@ -370,7 +362,7 @@ def SCmds():
     if not ('equnpt.tpr' in os.listdir() or 'equnpt.gro' in os.listdir()):
         printWarning("There were errors during Constant Pressure Equilibration Phase")
         printNote("It is advisable to abort the processs, check your files and errors and rerun")
-        response = input("To abort type YES/y. Otherwise process will continue anyway ")
+        response = tinput("To abort type YES/y. Otherwise process will continue anyway ", 10, "y")
         if response.lower() == "yes" or response.lower() == "y":
             raise Exception("Process Aborted. Make necessary corrections and restart")
     else:
@@ -400,7 +392,7 @@ def SCmds():
         subprocess.run('gmx grompp -f ../mdps/equpmd.mdp -c ../NPT/equnpt.gro -r ../NPT/equnpt.gro -p ../topol.top -t ../NPT/equnpt.cpt -o equpmd.tpr -maxwarn ' + str(maxwarn), shell=True)
     except subprocess.CalledProcessError as e:
         print(e)
-        print("Something went wrong with above error. Trying again...")		
+        print("Something went wrong with above error. Trying again...")
         Err4a = os.system('gmx grompp -f ../mdps/equpmd.mdp -c ../NPT/equnpt.gro -r ../NPT/equnpt.gro -p ../topol.top -t ../NPT/equnpt.cpt -o equpmd.tpr -maxwarn ' + str(maxwarn))
         if not Err4a == 0:
             print("Generating needed files for EQ Production MD failed. Please check error message")
@@ -415,7 +407,7 @@ def SCmds():
     if not ('equpmd.tpr' in os.listdir() or 'equpmd.gro' in os.listdir()):
         printWarning("There were errors during Equilibration Production MD Phase")
         printNote("It is advisable to abort the processs, check your files and errors and rerun")
-        response = input("To abort type YES/y. Otherwise process will continue anyway ")
+        response = tinput("To abort type YES/y. Otherwise process will continue anyway ", 10, "y")
         if response.lower() == "yes" or response.lower() == "y":
             raise Exception("Process Aborted. Make necessary corrections and restart")
     else:
@@ -445,7 +437,7 @@ def SCmds():
         subprocess.run('gmx grompp -f ../mdps/pmds.mdp -c ../EMD/equpmd.gro -r ../EMD/equpmd.gro -p ../topol.top -t ../EMD/equpmd.cpt -o pmds.tpr -maxwarn ' + str(maxwarn), shell=True)
     except subprocess.CalledProcessError as e:
         print(e)
-        print("Something went wrong with above error. Trying again...")		
+        print("Something went wrong with above error. Trying again...")
         Err5a = os.system('gmx grompp -f ../mdps/pmds.mdp -c ../EMD/equpmd.gro -r ../EMD/equpmd.gro -p ../topol.top -t ../EMD/equpmd.cpt -o pmds.tpr -maxwarn ' + str(maxwarn))
         if not Err4a == 0:
             print("Generating needed files for Production MD failed. Please check error message")

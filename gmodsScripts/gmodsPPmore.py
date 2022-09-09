@@ -42,12 +42,21 @@ import string
 import math
 import glob
 from colored import fore, back, style
+from tkinter import Tk, filedialog
+from inputimeout import inputimeout, TimeoutOccurred
+from pytimedinput import timedInput
 
-from gmodsScripts.gmodsHelpers import receptopol, topolsplit, indexoflines, complexgen, pdbcatogro, solvation, insertdetails, printWarning, printNote
+from gmodsScripts.gmodsHelpers import ligtopol, receptopol, topolsplit, indexoflines, complexgen, pdbcatogro, solvation, insertdetails, printWarning, printNote, tinput, select_folder, defaults1, defaults2
 
 from gmodsScripts.gmodsTLptopol import TLtopol
 
-def PPmore():
+def PPmore(appDIR, gmxDIR, fdefaults):
+	# Set some environment variables
+	scriptDIR = appDIR
+	GMX_MDS = gmxDIR
+
+	print("User working directory set to: ", GMX_MDS)
+
 	# Set global variable to access user supplied topology file(s)
 	global Ligsff
 	global tff
@@ -57,24 +66,50 @@ def PPmore():
 	Ligsff = " "
 	tff = " "
 
-	# Set some environment variables
-	scriptDIR = os.path.abspath(os.path.dirname(sys.argv[0]))
+	# Set global variable to automatically run pdb2gmx, editconf and others
+	# forcefields & water (select), -bt (triclinic), -d (0.1), and timeout (60)
+	defaults = fdefaults 
+	
+	printNote("Let us check again your selected default values ..... ")
+	
+	print("Default forcefield is", defaults[0])
+	print("Default water model is", defaults[1])
+	print("Default editconf -bt option is", defaults[2])
+	print("Default editconf -d option is", defaults[3])
+	print("Default timeout for input() request is", defaults[4])
 
-	GMX_MDS=Path.cwd()
-	print("User working directory set to ", GMX_MDS)
+	if defaults[5] == "A":
+		printNote("Your selected default mode for generating input file is Interractive")
+		response = tinput("To revert to Noninteractive mode type YES/y: ", 30, "n")
+		if response.lower() == "yes" or response.lower() == "y":
+			defaults[5] = "B"
+			printNote("You have changed to pdb2gmx non-interactive mode")
+			print("Your preferred forcefield and water model will be autodetected following your first interactive selection")
+	else:
+		printNote("Your selected default mode for generating input file is Noninterractive")
+		response = tinput("To revert back to Interactive mode type YES/y: ", 30, "n")
+		if response.lower() == "yes" or response.lower() == "y":
+			defaults = ["select", "select", "triclinic", 0.1, 60, "A"]
+		else:
+			defaults[5] = "C"
 
-	time.sleep(5)
-
-	PLD = os.path.join(scriptDIR, 'gmodsTSF')
-	PLDfiles = os.listdir(PLD)
+	response = tinput("To adjust further the selected default values of -d, -bt and timeout type YES/y: ", 30, "n")
+	if response.lower() == "yes" or response.lower() == "y":
+		defaults[2], defaults[3], defaults[4] = defaults1() 
 
 	time.sleep(10)
+		
+	# Set some global parameter variables
+	PLD = os.path.join(scriptDIR, 'gmodsTSF')
+	PLDfiles = os.listdir(PLD)
 
 	fSamples = os.path.join(scriptDIR, 'sampleFiles')
 	fPDB = os.path.join(scriptDIR, 'Uploads')
 
 	PEPfiles = []
 	PROfiles = []
+
+	time.sleep(5)
 
 	# Perform initial checks of the ligands and receptor files
 	listfPDB = os.listdir(fPDB)
@@ -109,7 +144,7 @@ def PPmore():
 
 	# Get user imput for project name
 	while True:
-		name = input("Suppy a name for the current project: ")
+		name = tinput("Suppy a name for the current project: ", 30, "PPmore")
 		if name == " ":
 			print("You must supply a name for the project")
 			continue
@@ -133,12 +168,14 @@ def PPmore():
 		else:
 			continue
 
-	def pptopsolgen(pname, rname, tleapfile):
+	def pptopsolgen(pname, rname, tleapfile, rundefaults):
 		# Get needed variables as global
 		global Ligsff
 		global tff
 		global PLD
 		global fPDB
+
+		udefaults = rundefaults
 
 		# Set workhost directory similar to the main function
 		workhost_dir = Path.cwd()
@@ -155,12 +192,15 @@ def PPmore():
 
 		printNote("Generating topology and parameter files...")
 
+		selff = udefaults[0]
+		selwater = udefaults[1]
+
 		shutil.copy(os.path.join(workhost_dir, pname), './')
 
 		# Generating Protein topology and parameter files
 
 		while True:
-			RFtop, RFpdb, RFposre = receptopol(pname, rname)
+			RFtop, RFpdb, RFposre = receptopol(pname, rname, selff, selwater)
 
 			# Let us find out the forcefield choosen by the user for protein topology
 			t = open(RFtop, "r")
@@ -189,7 +229,7 @@ def PPmore():
 				print("B). By default, any actions related to former forcefield will be ignored")
 
 				printNote("To rerun, Type YES/y. Otherwise press ENTER to continue with current selection")
-				response = input("Response: ")
+				response = tinput("Response: ", udefaults[4], "n")
 				if response.lower() == "yes" or response.lower() == "y":
 					continue
 				else:
@@ -206,7 +246,7 @@ def PPmore():
 						printNote("This may happen if you used a self created or modified forcefield. As such standard naming convention for forcefield should be used. E.g. Amber group of forcefields starts with amber, Gromos with gromos, etc. OR it may happen if generation of topol.top fails.")
 						printWarning("It is strongly recommended to abort the process, check uploaded file for correctness, and try again. Check README.md file for some troubleshooting tips")
 						printNote("To abort, Type YES/y. To continue anyway, press ENTER")
-						response = input("Response: ")
+						response = tinput("Response: ", udefaults[4], "y")
 						if response.lower() == "yes" or response.lower() == "y":
 							raise Exception("Process aborted. Make necessary corrections and Rerun setup")
 						else:
@@ -234,6 +274,30 @@ def PPmore():
 			os.rename(RFpdb, rfpdbfile)
 		except Exception as e:
 			printWarning(e)
+
+		if udefaults[5] == "B":
+			if Path(tff).suffix == ".ff":
+				udefaults[0] = Path(tff).stem
+			else:
+				udefaults[0] = tff
+			
+			udefaults[1] = defaults2(rftopfile)
+			if udefaults[1] == "none":
+				print("No water model was detected for your system")
+			else:
+				print("Your water model as contained in topol.top file is ", udefaults[1])
+			
+			printNote("Your selected default values are as follows: ")
+			print("		Default forcefield: ", udefaults[0])
+			print("		Default water model: ", udefaults[1])
+			print("		Default editconf -bt: ", udefaults[2])
+			print("		Default editconf -d: ", udefaults[3])
+			print("		Default input timeout: ", udefaults[4])
+			print("		Default mode: non-interactive")
+
+			# We will now lock these defaults by changing mode to C
+			udefaults[5] = "C"
+			time.sleep(10)
 
 		# Now, let us genreated alternative amber topology file for use with gromacs
 
@@ -265,7 +329,7 @@ def PPmore():
 			print("It is therefore advisable to abort and attempt to fix the errors")
 			printNote("#####################################################################")
 
-			response = input("Type YES/y to continue. Otherwise press ENTER to abort: ")
+			response = tinput("Type YES/y to continue. Otherwise press ENTER to abort: ", defaults[4], "y")
 			if not (response.lower() == "yes" or response.lower() == "y"):
 				raise Exception("Process aborted. Make necessary corrections and rerun")
 
@@ -276,7 +340,7 @@ def PPmore():
 				printWarning("tleap could not successfully generate alternative topologies")
 				print("Please check, and if need be abort and attempt to fix the error")
 
-				response = input("Type YES/y to continue. Otherwise press ENTER to abort: ")
+				response = tinput("Type YES/y to continue. Otherwise press ENTER to abort: ", defaults[4], "y")
 				if not (response.lower() == "yes" or response.lower() == "y"):
 					raise Exception("Process aborted. Make necessary corrections and rerun")
 
@@ -344,12 +408,16 @@ def PPmore():
 			shutil.copy(tlpgmxtopol, 'xtlptopol.top')
 
 		# Time to prepared solvated structure
+		selwater = udefaults[1]
+		selbt = udefaults[2]
+		seld = udefaults[3]
+
 		chkSoldir = os.listdir()
 		if (rftopfile in chkSoldir and rfpdbfile in chkSoldir):
 			print(rname, "Solvation in progress.....")
 
 			shutil.copy(rftopfile, 'topol.top')
-			grosolvated = solvation(rfpdbfile, 'topol.top')
+			grosolvated = solvation(rfpdbfile, 'topol.top', selwater, selbt, seld)
 			
 			if not grosolvated == 'fsolvated.gro':
 				print(rname, "Solvation unsuccessful")
@@ -360,12 +428,6 @@ def PPmore():
 		else:
 			print("Required file(s) for " + rname + " solvation not found / generated. Solvation can not continue")
 			printNote("All needed files for manual solvation will be gathered into gmxmds subfolder")
-
-		if 'notipw' in os.listdir():
-			try:
-				os.rename('fsolvated.gro', 'ufsolvate.gro')
-			except Exception as e:
-				print("Something went wrong with error", e)
 
 		os.chdir('../')
 
@@ -391,6 +453,8 @@ def PPmore():
 				shutil.copy(os.path.join(workhost_dir, 'Solvation', file), './')
 			elif file == "fsolvated.gro":
 				shutil.copy(os.path.join(workhost_dir, 'Solvation', file), './')
+			elif file == "ufsolvate.gro":
+				shutil.copy(os.path.join(workhost_dir, 'Solvation', file), './')
 			elif file == 'tlpSolvated.gro' or file == 'tlpSolvated.top':
 				shutil.copy(os.path.join(workhost_dir, 'Solvation', file), './')
 
@@ -407,11 +471,12 @@ def PPmore():
 
 		time.sleep(5)
 
-		if not grosolvated == "fsolvated.gro":
-			print("gmxmds subfolder has been populated and ready manual solvation")
-			time.sleep(5)
+		# If required, new restraint file can now be generated
+		listgmxmds = os.listdir()
 
-		else:
+		if "fsolvated.gro" in listgmxmds:
+			grosolvated = "fsolvated.gro"
+
 			printNote("##############################################################################")
 			print("# The current posre.itp restrain all heavy atoms which include Backbone atoms")
 			print("# You can generate your desired restrain file if this does not meet your need")
@@ -420,7 +485,7 @@ def PPmore():
 			printNote("##############################################################################")
 
 			# Generating new restraint file if needed
-			response = input("To generate a new restraint interactively, type YES/y, otherwise the default will be used: ")
+			response = tinput("To generate a new restraint interactively, type YES/y, or press ENTER: ", defaults[4], "n")
 			if response.lower() == "yes" or response.lower() == "y":
 				success = 0
 				try:
@@ -455,9 +520,26 @@ def PPmore():
 				printNote("No posre_udp.itp has been generated. If need be, generate it manually")
 
 			print("gmxmds subfolder has been populated and ready for use for MD simulation of", rname)
-			time.sleep(5)
+			return grosolvated, udefaults
 
-		return 'fsolvated.gro'
+		elif "ufsolvate.gro" in listgmxmds:
+			grosolvated = "ufsolvate.gro"
+			print("Manual solvation and/or generation of restraint is required if necessary")
+			print("gmxmds subfolder has been populated and ready for use")
+			return grosolvated, udefaults
+
+		elif "tlpSolvated.gro" in listgmxmds:
+			grosolvated = "tlpSolvated.gro"
+			print("Manual generation of restraint for tleap generated solvated complex is required, if necessary")
+			print("gmxmds subfolder has been populated and ready for use")
+			return grosolvated, udefaults
+
+		else:
+			grosolvated = "none"
+			print("No solvated or unsolvated complex was detected in gmxmds subfolder. Please check")
+			return grosolvated, udefaults
+
+	time.sleep(10)
 
 	# Create working folder using the generated name
 	os.mkdir(foldername)
@@ -541,7 +623,8 @@ def PPmore():
 			shutil.copy(os.path.join(PLD, 'peptoptleap.in'), './')
 			tleapfile = "peptoptleap.in"
 
-			pepsolvated = pptopsolgen(pname, rname, tleapfile)
+			pepsolvated, udefaults = pptopsolgen(pname, rname, tleapfile, defaults)
+			defaults = udefaults
 
 			os.chdir('../')
 			for fitem in os.listdir():
@@ -573,7 +656,8 @@ def PPmore():
 			shutil.copy(os.path.join(PLD, 'protoptleap.in'), './')
 			tleapfile = "protoptleap.in"
 
-			protsolvated = pptopsolgen(prname, rrname, tleapfile)
+			protsolvated, udefaults = pptopsolgen(prname, rrname, tleapfile, defaults)
+			defaults = udefaults
 
 			os.chdir('../')
 			for fitem in os.listdir():

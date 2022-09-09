@@ -1,5 +1,71 @@
 {% extends "layout.html" %}
 
+{% block style %}
+	<style>
+		.footer {
+			display: none;
+		}
+	</style>
+{% endblock %}
+
+{% block script %}
+	<script>
+		function myApproach(){
+			let jff = {{ gmxtoplist|tojson }};
+			let x = document.getElementById("approach").value;
+			let y = document.getElementById("forcefield");
+	
+			y.options.length = 1;
+			if (x === "Noninteractive") {
+				if (y.style.display = "none"){
+					y.style.display = "block";
+				}
+
+				for (let f in jff){
+					fsel = jff[f];
+					y.options[y.options.length] = new Option(fsel, fsel);
+				}
+			}else{
+				if (y.style.display = "none"){
+					y.style.display = "block";
+				}
+				myFW();
+			}
+		}
+
+		function myFW(){
+			let jdictff = {{ dictff|tojson }};
+			let x = document.getElementById("forcefield").value;
+			let y = document.getElementById("watertype");
+	
+			y.options.length = 1;
+			if (x in jdictff) {
+				if (y.style.display = "none"){
+					y.style.display = "block";
+				}
+
+				let wmodels = jdictff[x];
+				for (let wm in wmodels){
+					model = wmodels[wm];
+					y.options[y.options.length] = new Option(model, model);
+				}
+			}else{
+				if (y.style.display = "none"){
+					y.style.display = "block";
+				}
+			}
+		}
+
+		function submitDisabled() {
+			d = document.getElementById("button");
+			if (d.disabled === false) {
+				d.disabled = true;
+			}
+			alert("Details successfully submitted. Click OK and return to terminal for continuation")
+		}
+	</script>
+{% endblock %}
+
 {% block title %}
     Run Setup
 {% endblock %}
@@ -8,42 +74,79 @@
   <h1>Generate MDS Input Files</h1>
 	{% if N == 1 %}
 		<div style="letter-spacing:4px;">
-			<p><strong>You have choosen RLmulti route to generate MDS input files. This will generate files for receptor - multi-ligand complex. To change, set new route and re-upload your files</strong></p>
-			<p><strong>To continue with RLmulti, Click (just once) the button below. Then monitor progress on the terminal</strong></p>
-			<button class="domnav domformat">
-				<a href="/rlmulti" class="domitem domnav-button">RLmulti</a>
-			</button>
-		</div>
+			<p><strong>You have choosen RLmulti route to generate MDS input files. This will generate files for receptor - multi-ligand complex. To change, set new route and re-upload your files</strong></p><br>
 
-		<div id="gap"><p> </p></div>
+			<p><strong><i>Before we run the RLmulti MDS setup, let's set some default values:</i></strong></p>
+		</div>
 
 	{% elif N == 2 %}
 		<div style="letter-spacing:4px;">
-			<p><strong>You have choosen RLmany route to generate MDS input files. This will genenrate separate files for each ligand - recptor complex. To change, set a new route and re-upload your files</strong></p>
-			<p><strong>To continue with RLmany, Click (just once) the button below. Then monitor progress on the terminal</strong></p>
-			<button class="domnav domformat">
-				<a href="/rlmany" class="domitem domnav-button">RLmany</a>
-			</button>
-		</div>
+			<p><strong>You have choosen RLmany route to generate MDS input files. This will generate files for receptor - ligand complex for each of the ligands. To change, set new route and re-upload your files</strong></p><br>
 
-		<div id="gap"><p> </p></div>
+			<p><strong><i>Before we run the RLmany MDS setup, let's set some default values:</i></strong></p>
+		</div>
 
 	{% elif N == 3 %}
 		<div style="letter-spacing:4px;">
-			<p><strong>You have choosen RLsingle route to generate MDS input files. This will generate separate files each matching pairs of receptor - ligand complex. To change, set a new route and re-upload your files</strong></p>
-			<p><strong>To continue with RLsingle, Click (just once) the button below. Then monitor progress on the terminal</strong></p>
-			<button class="domnav domformat">
-				<a href="/rlsingle" class="domitem domnav-button">RLsingle</a>
-			</button>
+			<p><strong>You have choosen RLsingle route to generate MDS input files. This will generate files for receptor - ligand complex for each pair of protein and ligand. To change, set new route and re-upload your files</strong></p><br>
+
+			<p><strong><i>Before we run the RLsingle MDS setup, let's set some default values:</i></strong></p>
 		</div>
 
 	{% elif N == 4 %}
 		<div style="letter-spacing:4px;">
-			<p><strong>You have choosen PPmore route to generate MDS input files for Peptides and/or Proteins. This will not work for protein - ligand complex. To change, set a new route and re-upload your files</strong></p>
-			<p><strong>To continue with PPmore, Click (just once) the button below. Then monitor progress on the terminal</strong></p>
-			<button class="domnav domformat">
-				<a href="/ppmore" class="domitem domnav-button">PPmore</a>
-			</button>
+			<p><strong>You have choosen PPmore route to generate MDS input files. This will generate files for each of the proteins or peptides but not for receptor - ligand complex.  The process will fail if the supplied protein contains non-standard recidues, such as co-crystalline ligands. To change, set new route and re-upload your files</strong></p><br>
+
+			<p><strong><i>Before we run the PPmore MDS setup, let's set some default values:</i></strong></p>
 		</div>
+
 	{% endif %}
+
+	<form onsubmit="submitDisabled()" class="form-group" action="/runscripts" method="post">
+		
+		<label for="timeout">Timeout (seconds)</label><br>
+		<input id="timeout" type="number" name="timeout" class="form-control" min="1" max="600" value="60" style="width: 25%;" aria-describedby="userTHelp"/>
+		<div id="userTHelp" class="form-text">Maximum time to wait for input request. Default is 60</div>
+		<br>
+
+		<label for="changed">Prefeered box size</label><br>
+		<input id="changed" type="number" name="changed" class="form-control" min="0.001" max="10" step="0.001" value="0.100" style="width: 25%;" aria-describedby="userDHelp"/> 
+		<div id="userDHelp" class="form-text">Preferred value for editconf -d option. Default is 0.10</div>
+		<br>
+
+		<label for="changebt">Preferred box type</label><br>
+		<select class="form-select" name="changebt" id="changebt" style="width: 50%;" aria-describedby="userBTHelp"/>
+			<option value="triclinic">triclinic</option>
+			<option value="cubic">cubic</option>
+			<option value="octahedron">octahedron</option>
+			<option value="dodecahedron">dodecahedron</option>
+		</select>
+		<div id="userBTHelp" class="form-text">Preferred editconf -bt option. Default is triclinic</div>
+		<br>
+
+		<label for="setupapproach">Choose your preferred Approach</label><br>
+		<select class="form-select" name="approach" id="approach" onchange="myApproach()" style="width: 50%;" aria-describedby="userAHelp">
+			<option value="Interactive">Interactive</option>
+			<option value="Noninteractive">Noninteractive</option>
+		</select>
+		<div id="userAHelp" class="form-text">Preferred mode for generating MDS input files. Default is Interactive</div>
+		<br>
+
+		<label for="ffselection">Choose your preferred Forcefield</label><br>
+		<select class="form-select" name="forcefield" id="forcefield" onchange="myFW()" style="width: 50%;" aria-describedby="userFHelp">
+			<option value="select">select</option>
+		</select>
+		<div id="userFHelp" class="form-text">Recommended default is select. This goes with Interactive mode</div>
+		<br>
+
+		<label for="selwater">Choose your preferred Water Model</label><br>
+		<select class="form-select" name="watertype" id="watertype" style="width: 50%;" aria-describedby="userMHelp">
+			<option value="select">select</option>
+		</select>
+		<div id="userMHelp" class="form-text">Recommended default is select. This goes with Interactive mode</div>
+		<br>
+
+		<input id="button" type="submit" value="Run {{ selected }}">
+	</form>
+
 {% endblock %}

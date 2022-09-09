@@ -43,8 +43,11 @@ import string
 import math
 import glob
 from colored import fore, back, style
+from tkinter import Tk, filedialog
+from inputimeout import inputimeout, TimeoutOccurred
+from pytimedinput import timedInput
 
-from gmodsScripts.gmodsHelpers import indexoflines, printWarning, printNote
+from gmodsScripts.gmodsHelpers import indexoflines, printWarning, printNote, select_folder, gmxtop
 
 def OPLStop(LFtop, ff, name):
 	topcwdir = Path.cwd()
@@ -71,31 +74,38 @@ def OPLStop(LFtop, ff, name):
 
 	# Get the absolute path to the forcefield directory and copy ffnonbonded.itp file
 	gmxtopdir = " "
-	try:
-		gmxtopdir = os.path.join(os.environ.get('GMXDATA'), 'top', ff)
-	except:
-		print("We are unable to autodetect your forcefield directory")
-		print("Please supply absolute path to your forcefield directory")
-		print("Usually /path-to-gromacs/share/gromacs/top/your-selected-forcefield.ff")
-		while True:
-			gmxtopdir = input("Path to Forcefield: ")
-			if not os.path.isdir(gmxtopdir):
-				print("Directory you supplied does not exist. Please check and try again")
-			else:
-				break
+	topffdir = " "
+	gmxtopff = []
 
-	if not os.path.isdir(gmxtopdir):
-		print(gmxtopdir, "that was autodetected, is not a valid forcefield directory")
-		print("Please supply the correct absolute path to your forcefield directory")
-		print("Usually /path-to-gromacs/share/gromacs/top/your-selected-forcefield.ff")
-		while True:
-			gmxtopdir = input("Path to Forcefield: ")
-			if not os.path.isdir(gmxtopdir):
-				print("Directory you supplied does not exist. Please check and try again")
-			else:
-				break
+	nT = 0
+	while True:
+		nT += 1
+		if nT > 3:
+			break
 
-	print("Your topology directory is", gmxtopdir)
+		gmxtopff, topffdir = gmxtop()
+		gmxtopdir = os.path.join(topffdir, ff)
+		
+		if not len(gmxtopff) > 0:
+			print(f"The specified directory, {gmxtopdir}, is not a valid Gromacs forcefield directory")
+			printNote("Trying again ...")
+			continue
+			
+		elif not Path(ff).stem in gmxtopff:
+			print(f"The specified forcefield, {ff}, is missing in the selected/detected directory")
+			printNote("You might have selected a directory with an incomplete list of forcefields")
+			printNote("Trying again ...")
+			continue
+			
+		elif not os.path.isdir(gmxtopdir):
+			print(gmxtopdir, "that was autodetected, is not a valid forcefield directory")
+			printNote("Trying again ...")
+			continue
+			
+		else:
+			print("Your topology directory is", gmxtopdir)
+			break
+
 	time.sleep(5)
 
 	lsgmxtopdir = os.listdir(gmxtopdir)

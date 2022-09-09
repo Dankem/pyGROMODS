@@ -42,39 +42,73 @@ import string
 import math
 import glob
 from colored import fore, back, style
+from tkinter import Tk, filedialog
+from inputimeout import inputimeout, TimeoutOccurred
+from pytimedinput import timedInput
 
-from gmodsScripts.gmodsHelpers import ligtopol, receptopol, topolsplit, indexoflines, complexgen, pdbcatogro, solvation, insertdetails, printWarning, printNote
+from gmodsScripts.gmodsHelpers import ligtopol, receptopol, topolsplit, indexoflines, complexgen, pdbcatogro, solvation, insertdetails, printWarning, printNote, tinput, select_folder, defaults1, defaults2
 
 from gmodsScripts.gmodsTLptopol import TLtopol
 from gmodsScripts.gmodsTScheck import Checkligtop
 from gmodsScripts.gmodsOPLStop import OPLStop, OPLSacpype
 
-def RLmany():
+def RLmany(appDIR, gmxDIR, fdefaults):
+	# Set some environment variables
+	scriptDIR = appDIR
+	GMX_MDS = gmxDIR
+
+	print("User working directory set to: ", GMX_MDS)
+
 	# Set global variable to access user supplied topology file(s)
 	TFF = 0
 	Ligsff = " "
 	tff = " "
 
-	# Set some environment variables
-	scriptDIR = os.path.abspath(os.path.dirname(sys.argv[0]))
+	# Set global variable to automatically run pdb2gmx, editconf and others
+	# forcefields & water (select), -bt (triclinic), -d (0.1), and timeout (60)
+	defaults = fdefaults 
+	
+	printNote("Let us check again your selected default values ..... ")
+	
+	print("Default forcefield is", defaults[0])
+	print("Default water model is", defaults[1])
+	print("Default editconf -bt option is", defaults[2])
+	print("Default editconf -d option is", defaults[3])
+	print("Default timeout for input() request is", defaults[4])
 
-	GMX_MDS=Path.cwd()
-	print("User working directory set to ", GMX_MDS)
+	if defaults[5] == "A":
+		printNote("Your selected default mode for generating input file is Interractive")
+		response = tinput("To revert to Noninteractive mode type YES/y: ", 30, "n")
+		if response.lower() == "yes" or response.lower() == "y":
+			defaults[5] = "B"
+			printNote("You have changed to pdb2gmx non-interactive mode")
+			print("Your preferred forcefield and water model will be autodetected following your first interactive selection")
+	else:
+		printNote("Your selected default mode for generating input file is Noninterractive")
+		response = tinput("To revert back to Interactive mode type YES/y: ", 30, "n")
+		if response.lower() == "yes" or response.lower() == "y":
+			defaults = ["select", "select", "triclinic", 0.1, 60, "A"]
+		else:
+			defaults[5] = "C"
 
-	time.sleep(5)
+	response = tinput("To adjust further the selected default values of -d, -bt and timeout type YES/y: ", 30, "n")
+	if response.lower() == "yes" or response.lower() == "y":
+		defaults[2], defaults[3], defaults[4] = defaults1() 
 
+	time.sleep(10)
+		
+	# Set some global parameter variables
 	PLD = os.path.join(scriptDIR, 'gmodsTSF')
 	PLDfiles = os.listdir(PLD)
-
-	time.sleep(5)
 
 	fSamples = os.path.join(scriptDIR, 'sampleFiles')
 	fPDB = os.path.join(scriptDIR, 'Uploads')
 
-	# Perform initial checks of the ligands and receptor files
 	LIGfiles = os.listdir(os.path.join(fPDB, 'Ligands'))
 	RECfiles = os.listdir(os.path.join(fPDB, 'Receptors'))
 	TOPfiles = []
+
+	time.sleep(5)
 
 	# Check preferred forcefield selection, forcefield folder and its content
 	fPDBfolders = os.listdir(fPDB)
@@ -105,9 +139,9 @@ def RLmany():
 			print("Number of supplied topology files does not match the number of ligands")
 			print("It is highly recommended to abort, crosscheck the files and rerun")
 			print("If you choose to continue, user uploaded ligand topologies will be ignored")
-			response = input("To continue, type YES/y, Otherwise press ENTER to abort: ")
+			response = tinput("To continue, type YES/y, Otherwise press ENTER to abort: ", defaults[4], "n")
 			if not (response.lower() == "yes" or response.lower() == "y"):
-				raise Exception("You have choosen to Abort!!!. Check and restart the process")
+				raise Exception("Number of topology files does not match the number of ligands. Check and restart")
 			else:
 				TFF = 0
 
@@ -134,11 +168,11 @@ def RLmany():
 						printNote("This file may lack ['atomtypes'], ['moleculetype'] and/or [ system ] subheaders")
 						print("Check and include the subheadings, with or without expected accompanied values")
 						print("To abort and restart, type YES/y. Otherwise the process will ignore uploaded ligand topology")
-						response = input("Response: ")						
+						response = tinput("Response: ", defaults[4], "y")						
 						if not (response.lower() == "yes" or response.lower() == "y"):
 							TFF = 0
 						else:
-							raise Exception("Make necessary corrections and restart")
+							raise Exception("Checking supplied ligand topology failed. Check the file and restart")
 					filecheck.close()
 
 	for file in LIGfiles:
@@ -157,7 +191,7 @@ def RLmany():
 
 	if len(LIGfiles) > 1:
 		print("You have more than one ligand. Each ligand will form separate complex with receptor. Are you sure you want to continue?")
-		response = input("Type YES/y to continue or press ENTER to abort: ")
+		response = tinput("Type YES/y to continue: ", defaults[4], "y")
 		if not (response.lower() == "yes" or response.lower() == "y"):
 			raise Exception("You have choosen to Abort!!!. Check and restart the process")
 
@@ -173,15 +207,11 @@ def RLmany():
 
 		if tlpresent > 1:
 			printWarning("WARNING: You have more than one tleap source files with similar identifier. This may be a case of duplications. Please check and make necessary corrections, and try again")
-			response = input("To try again, type YES/y, Otherwise press ENTER to abort: ")
-			if not (response.lower() == "yes" or response.lower() == "y"):
-				raise Exception("Process aborted. Crosscheck the tleap source files found in", PLD)
+			raise Exception("Process aborted. Crosscheck the tleap source files found in", PLD)
 
 		elif tlpresent < 1:
-			printWarning("WARNING: The needed tleap source files is missing or may have been renamed with identifier '-1-' missing in the file name")
-			response = input("To recheck and continue, type YES/y. Otherwise press ENTER to abort: ")
-			if not (response.lower() == "yes" or response.lower() == "y"):
-				raise Exception("Process aborted. Crosscheck the tleap source file")
+			printWarning("WARNING: The needed tleap source files is missing or may have been renamed with missing identifier in the file name")
+			raise Exception("Process aborted. Crosscheck the tleap source file")
 
 		elif tlpresent == 1:
 			printNote("Found the needed tleap source file for your work")
@@ -193,7 +223,7 @@ def RLmany():
 
 	# Get user imput for project name
 	while True:
-		name = input("Suppy a name for the current project: ")
+		name = tinput("Suppy a name for the current project: ", 30, "RLmany")
 		if name == " ":
 			print("You must supply a name for the project")
 			continue
@@ -270,10 +300,13 @@ def RLmany():
 		# Generate Protein topologies and associated parameters
 		rname = "receptor"
 		rep = RECfiles[0]
+		selff = defaults[0]
+		selwater = defaults[1]
+
 		shutil.copy(os.path.join(fPDB, 'Receptors', rep), './')
 
 		while True:
-			RFtop, RFpdb, RFposre = receptopol(rep, rname)
+			RFtop, RFpdb, RFposre = receptopol(rep, rname, selff, selwater)
 
 			# Let us find out the forcefield choosen by the user for protein topology
 			t = open(RFtop, "r")
@@ -303,7 +336,7 @@ def RLmany():
 				print("C). However, you may choose to keep your uploaded ligand topology(ies) if compatible with your current forcefield selection")
 
 				printNote("To rerun, Type YES/y. To continue with current selection press ENTER")
-				response = input("Response: ")
+				response = tinput("Response: ", defaults[4], "n")
 				if response.lower() == "yes" or response.lower() == "y":
 					continue
 				else:
@@ -334,7 +367,7 @@ def RLmany():
 					if TFF > 0:
 						print("Subdirectory for uploaded ligand topology is now: ", ligsff_dir)
 						printNote("To use with uploaded ligand topology, type YES/y. Otherwise press ENTER to ignore")
-						response = input("Response: ")
+						response = tinput("Response: ", defaults[4], "y")
 						if not (response.lower() == "yes" or response.lower() == "y"):
 							TFF = 0
 							break
@@ -355,8 +388,31 @@ def RLmany():
 			printWarning(e)
 			pass
 
-		os.chdir('../')
+		if defaults[5] == "B":
+			if Path(tff).suffix == ".ff":
+				defaults[0] = Path(tff).stem
+			else:
+				defaults[0] = tff
+			
+			defaults[1] = defaults2(RFtop)
+			if defaults[1] == "none":
+				print("No water model was detected for your system")
+			else:
+				print("Your water model as contained in topol.top file is ", defaults[1])
+			
+			printNote("Your selected default values are as follows: ")
+			print("		Default forcefield: ", defaults[0])
+			print("		Default water model: ", defaults[1])
+			print("		Default editconf -bt: ", defaults[2])
+			print("		Default editconf -d: ", defaults[3])
+			print("		Default input timeout: ", defaults[4])
+			print("		Default mode: non-interactive")
 
+			# We will now lock these defaults by changing mode to C
+			defaults[5] = "C"
+			time.sleep(10)
+
+		os.chdir('../')
 		time.sleep(10)
 
 		# Determine and choose preferred route for platform generated opls ligand topology
@@ -369,10 +425,11 @@ def RLmany():
 			print("	2. Using acpype opls compatible ligand topology generation")
 			print("	3. Using platform default - ignore opls compatibility - NOT RECOMMENDED")
 			while True:
-				response = input("Choose your preferred option: ")
+				response = tinput("Choose your preferred option: ", defaults[4], "1")
 				if response == '1' or response == '2' or response == '3':
 					print("Option", response, "Selected!")
-					confirm = input("Type YES/y to confirm or press ENTER to choose a different option: ")
+					printNote("Type YES/y to confirm or press ENTER to choose a different option")
+					confirm = tinput("Response YES/y or press ENTER: ", defaults[4], "y")
 					if not (confirm.lower() == "yes" or confirm.lower() == "y"):
 						continue
 					else:
@@ -497,9 +554,10 @@ def RLmany():
 
 			else:
 				print(utop, "user supplied topology does not match the ligand named", ulig)
-				print("Please compare the two files and if correct, continue, otherwise, the uploaded topology for the current ligand will be ignored")
+				print("Please compare the two files and if correct, continue, otherwise, it advisable to ignore the affected uploaded ligand topology file")
 				print("If you need the topology, rerun the process and upload correct file")
-				response = input("Type YES/y to continue, Otherwise topology will be ignored: ")
+				printNote("Type YES/y to continue, Otherwise topology will be ignored")
+				response = tinput("Response YES/y or press ENTER: ", defaults[4], "n")
 				if not (response.lower() == "yes" or response.lower() == "y"):
 					TFF = 0
 					os.chdir('../')
@@ -696,7 +754,8 @@ def RLmany():
 			printNote("#####################################################################")
 
 			print("However, you may wish to try an alternative approach to complex generation")
-			response = input("Type YES/y to try an alternative approach. Otherwise press ENTER to abort: ")
+			printNote("Type YES/y to try an alternative approach. Otherwise press ENTER to abort")
+			response = tinput("Response YES/y: ", defaults[4], "y")
 			if not (response.lower() == "yes" or response.lower() == "y"):
 				raise Exception("Process aborted. Make necessary corrections and rerun")
 
@@ -724,7 +783,8 @@ def RLmany():
 				printNote("#####################################################################")
 
 				print("However, you may wish to try alternative approach to complex generation")
-				response = input("Type YES/y to try an alternative approach. Otherwise press ENTER to abort: ")
+				printNote("Type YES/y to try an alternative approach. Otherwise press ENTER to abort")
+				response = tinput("Response YES/y or press ENTER: ", defaults[4], "y")
 				if not (response.lower() == "yes" or response.lower() == "y"):
 					raise Exception("Process aborted. Make necessary corrections and rerun")
 
@@ -794,7 +854,7 @@ def RLmany():
 				print("It is strongly recommended to maintain this order for Gromos and Opls forcefields")
 				print('\n')
 				printNote("To reverse the order, type YES/y, Otherwise press ENTER to continue")
-				response = input("Response: ")
+				response = tinput("Response YES/y or press ENTER: ", defaults[4], "n")
 				if not (response.lower() == "yes" or response.lower() == "y"):
 					print("Backing off and renaming relevant files....")
 					os.rename('LIGS_at.itp', 'bkLIGS_at.itp')
@@ -841,6 +901,10 @@ def RLmany():
 		time.sleep(5)
 
 		# Time to prepared solvated complex
+		selwater = defaults[1]
+		selbt = defaults[2]
+		seld = defaults[3]
+
 		chkSoldir = os.listdir()
 		if ('tlpComplex.gro' in chkSoldir and 'tlpComplex.top' in chkSoldir):
 
@@ -853,13 +917,13 @@ def RLmany():
 			print('\n')
 
 			printNote("Solvation with tlpComplex.gro in progress.....")
-			grosolvated = solvation('tlpComplex.gro', 'topol.top')
+			grosolvated = solvation('tlpComplex.gro', 'topol.top', selwater, selbt, seld)
 			
 			if not grosolvated == 'fsolvated.gro' and 'catComplex.gro' in chkSoldir:
 				printNote("Solvation with tlpComplex.gro unsuccessful")
 
 				printNote("Trying Solvation with the alternative complex in progress.....")
-				grosolvated = solvation('catComplex.gro', 'topol.top')
+				grosolvated = solvation('catComplex.gro', 'topol.top', selwater, selbt, seld)
 
 				if not grosolvated == 'fsolvated.gro' and TFF > 0:
 					printNote("Solvation with alternative complex unsuccessful")
@@ -878,14 +942,14 @@ def RLmany():
 					shutil.copy('xtlptopol.top', 'tlptopol.top')
 	
 					printNote("Repeating Solvation with tlpComplex.gro in progress.....")
-					grosolvated = solvation('tlpComplex.gro', 'topol.top')
+					grosolvated = solvation('tlpComplex.gro', 'topol.top', selwater, selbt, seld)
 
 					if not grosolvated == 'fsolvated.gro':
 						printNote("Solvation with backup topologies failed with tlpComplex.gro")
 						print('\n')
 
 						printNote("Trying Solvation with the alternative complex with backup topologies ...")
-						grosolvated = solvation('catComplex.gro', 'topol.top')
+						grosolvated = solvation('catComplex.gro', 'topol.top', selwater, selbt, seld)
 
 						if not grosolvated == 'fsolvated.gro':
 							printNote("Solvation using backup topologies with alternative complex unsuccessful")
@@ -921,7 +985,7 @@ def RLmany():
 					shutil.copy('xtlptopol.top', 'tlptopol.top')
 	
 					printNote("Repeating Solvation with tlpComplex.gro in progress.....")
-					grosolvated = solvation('tlpComplex.gro', 'topol.top')
+					grosolvated = solvation('tlpComplex.gro', 'topol.top', selwater, selbt, seld)
 
 					if not grosolvated == 'fsolvated.gro':
 						printNote("Solvation with backup topologies failed with tlpComplex.gro")
@@ -942,7 +1006,7 @@ def RLmany():
 
 		elif 'catComplex.gro' in chkSoldir:
 			printNote("Solvation with catComplex.gro in progress.....")
-			grosolvated = solvation('catComplex.gro', 'topol.top')
+			grosolvated = solvation('catComplex.gro', 'topol.top', selwater, selbt, seld)
 
 			if not grosolvated == 'fsolvated.gro' and TFF > 0:
 				printNote("Solvation with catComplex.gro unsuccessful")
@@ -960,7 +1024,7 @@ def RLmany():
 				shutil.copy('xtlptopol.top', 'tlptopol.top')
 	
 				printNote("Repeating Solvation with catComplex.gro in progress.....")
-				grosolvated = solvation('catComplex.gro', 'topol.top')
+				grosolvated = solvation('catComplex.gro', 'topol.top', selwater, selbt, seld)
 
 				if not grosolvated == 'fsolvated.gro':
 					printNote("Solvation with backup topologies failed with catComplex.gro")
@@ -983,12 +1047,6 @@ def RLmany():
 		else:
 			printNote("Required gro file for solvation not found / generated. Solvation can not continue")
 			printNote("All needed files for manual solvation will be gathered into gmxmds subfolder")
-
-		if 'notipw' in os.listdir():
-			try:
-				os.rename('fsolvated.gro', 'ufsolvate.gro')
-			except Exception as e:
-				print("Something went wrong with error", e)
 
 		os.chdir('../')
 
@@ -1030,13 +1088,12 @@ def RLmany():
 
 		time.sleep(5)
 
-		if not grosolvated == "fsolvated.gro":
-			print(rls_dir, "gmxmds subfolder has been populated and ready for manual solvation")
-			print('\n')
-			time.sleep(5)
-			os.chdir('../../')
+		# If required, new restraint file can now be generated
+		listgmxmds = os.listdir()
 
-		else:
+		if "fsolvated.gro" in listgmxmds:
+			grosolvated = "fsolvated.gro"
+
 			printNote("##############################################################################")
 			print("# The current posre.itp restrain all heavy atoms which include Backbone atoms")
 			print("# You can generate your desired restrain file if this does not meet your need")
@@ -1047,7 +1104,8 @@ def RLmany():
 			time.sleep(5)
 
 			# Generating new restraint file if needed
-			response = input("To generate a new restraint interactively, type YES/y, otherwise press ENTER: ")
+			printNote("To generate a new restraint interactively, type YES/y, otherwise press ENTER")
+			response = tinput("Response YES/y or press ENTER: ", defaults[4], "n")
 			if response.lower() == "yes" or response.lower() == "y":
 				success = 0
 				try:
@@ -1084,6 +1142,13 @@ def RLmany():
 			print(rls_dir, "gmxmds subfolder has been populated and ready for molecular dynamic simulation")
 			time.sleep(5)
 			os.chdir('../../')
+
+		else:
+			print(rls_dir, "gmxmds subfolder has been populated and ready for manual solvation")
+			print('\n')
+			time.sleep(5)
+			os.chdir('../../')
+
 		TFF = M
 
 	print('\n')

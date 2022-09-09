@@ -1,5 +1,13 @@
 {% extends "layout.html" %}
 
+{% block style %}
+	<style>
+		.footer {
+			display: none;
+		}
+	</style>
+{% endblock %}
+
 {% block title %}
     Routes
 {% endblock %}
@@ -18,9 +26,9 @@
 
 	<h3>Choose one from the dropdown menu below</h3>
 
-	<form action="/setroute" method="post">
+	<form class="form-group" action="/setroute" method="post">
 		<label for="setuproute">Choose a Setup Route</label>
-		<select name="damas" id="damas">
+		<select class="form-select" name="damas" id="damas" style="width: 50%;">
 			<option value="None">No Selection</option>
 			<option value="RLmulti">RLmulti</option>
 			<option value="RLmany">RLmany</option>
