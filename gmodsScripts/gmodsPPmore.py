@@ -1,24 +1,9 @@
 #!/usr/bin/env python
 
 """
-    Requirements: Python 3 or higher
-                  Antechamber and related AmberTools
-                  OpenBabel (strongly recommended for use with acpype)
-				  acpype (latest version recommended with all its requirements)
-				  Gromacs (Compulsory)
-                  flask (Compulsory)
-                  flaskwebgui (recommended)
-                  pyfladesk (recommended)
-
     This code is released under GNU General Public License V3.
 
           <<<  NO WARRANTY AT ALL!!!  >>>
-
-    It was inspired by:
-
-    - CS50 online training for which this code serves as part of the final project
-
-	- PLEASE Read the README.md file and also follow instructions on the GUI and/or Terminal
 
 	Daniyan, Oluwatoyin Michael, B.Pharm. M.Sc. (Pharmacology) and Ph.D. (Science) Biochemistry
     Department of Pharmacology, Faculty of Pharmacy
@@ -29,8 +14,8 @@
 """
 import sys
 
-if sys.version_info[0] < 3:
-	raise Exception("Python 3 or a more recent version is required.")
+if sys.version_info < (3, 5):
+	raise Exception("Python 3.5 or a more recent version is required.")
 
 import os
 import subprocess
@@ -39,23 +24,18 @@ import time
 import shutil
 import random
 import string
-import math
-import glob
-from colored import fore, back, style
-from tkinter import Tk, filedialog
-from inputimeout import inputimeout, TimeoutOccurred
-from pytimedinput import timedInput
 
-from gmodsScripts.gmodsHelpers import ligtopol, receptopol, topolsplit, indexoflines, complexgen, pdbcatogro, solvation, insertdetails, printWarning, printNote, tinput, select_folder, defaults1, defaults2
+from gmodsScripts.gmodsHelpers import receptopol, complexgen, solvation, insertdetails, printWarning, printNote, tinput, defaults1, defaults2
 
 from gmodsScripts.gmodsTLptopol import TLtopol
 
 def PPmore(appDIR, gmxDIR, fdefaults):
+	print('\n')
 	# Set some environment variables
 	scriptDIR = appDIR
 	GMX_MDS = gmxDIR
 
-	print("User working directory set to: ", GMX_MDS)
+	print(f"User working directory set to: {GMX_MDS}")
 
 	# Set global variable to access user supplied topology file(s)
 	global Ligsff
@@ -72,44 +52,39 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 	
 	printNote("Let us check again your selected default values ..... ")
 	
-	print("Default forcefield is", defaults[0])
-	print("Default water model is", defaults[1])
-	print("Default editconf -bt option is", defaults[2])
-	print("Default editconf -d option is", defaults[3])
-	print("Default timeout for input() request is", defaults[4])
+	print(f"Default forcefield is {defaults[0]}")
+	print(f"Default water model is {defaults[1]}")
+	print(f"Default editconf -bt option is {defaults[2]}")
+	print(f"Default editconf -d option is {defaults[3]}")
+	print(f"Default timeout for input() request is {defaults[4]}")
 
 	if defaults[5] == "A":
 		printNote("Your selected default mode for generating input file is Interractive")
-		response = tinput("To revert to Noninteractive mode type YES/y: ", 30, "n")
+		response = tinput("To revert to Noninteractive mode type YES/y: ", defaults[4], "n")
 		if response.lower() == "yes" or response.lower() == "y":
 			defaults[5] = "B"
 			printNote("You have changed to pdb2gmx non-interactive mode")
 			print("Your preferred forcefield and water model will be autodetected following your first interactive selection")
 	else:
 		printNote("Your selected default mode for generating input file is Noninterractive")
-		response = tinput("To revert back to Interactive mode type YES/y: ", 30, "n")
+		response = tinput("To revert back to Interactive mode type YES/y: ", defaults[4], "n")
 		if response.lower() == "yes" or response.lower() == "y":
 			defaults = ["select", "select", "triclinic", 0.1, 60, "A"]
 		else:
 			defaults[5] = "C"
 
-	response = tinput("To adjust further the selected default values of -d, -bt and timeout type YES/y: ", 30, "n")
+	response = tinput("To adjust further the selected default values of -d, -bt and timeout type YES/y: ", defaults[4], "n")
 	if response.lower() == "yes" or response.lower() == "y":
 		defaults[2], defaults[3], defaults[4] = defaults1() 
 
-	time.sleep(10)
-		
 	# Set some global parameter variables
 	PLD = os.path.join(scriptDIR, 'gmodsTSF')
-	PLDfiles = os.listdir(PLD)
 
 	fSamples = os.path.join(scriptDIR, 'sampleFiles')
 	fPDB = os.path.join(scriptDIR, 'Uploads')
 
 	PEPfiles = []
 	PROfiles = []
-
-	time.sleep(5)
 
 	# Perform initial checks of the ligands and receptor files
 	listfPDB = os.listdir(fPDB)
@@ -136,15 +111,11 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 			
 	if not Ligsff == " ":
 		printNote("PLEASE NOTE")
-		print("Your preselected forcefield group is", Ligsff)
-
-	time.sleep(5)
-
-	fMDP = os.path.join(scriptDIR, 'MDP')
+		print(f"Your preselected forcefield group is {Ligsff}")
 
 	# Get user imput for project name
 	while True:
-		name = tinput("Suppy a name for the current project: ", 30, "PPmore")
+		name = tinput("Suppy a name for the current project: ", defaults[4], "PPmore")
 		if name == " ":
 			print("You must supply a name for the project")
 			continue
@@ -162,8 +133,8 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 		ID = idalpha1 + str(idnumber) + idalpha2
 		foldername = name + "_" + str(ID)
 		if not os.path.isdir(foldername):
-			print("Your Unique ID is: ", ID)
-			print("Your current work will be stored in ", foldername)
+			print(f"Your Unique ID is: {ID}")
+			print(f"Your current work will be stored in {foldername}")
 			break
 		else:
 			continue
@@ -175,6 +146,7 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 		global PLD
 		global fPDB
 
+		f = open("pperror.txt", "a")
 		udefaults = rundefaults
 
 		# Set workhost directory similar to the main function
@@ -188,7 +160,7 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 		os.chdir("ppTOPS")
 
 		pptops_dir = os.path.join(workhost_dir, "ppTOPS")
-		print("Protein topology data directory set to ", pptops_dir)
+		print(f"Protein topology data directory set to {pptops_dir}")
 
 		printNote("Generating topology and parameter files...")
 
@@ -221,16 +193,17 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 			t.close()
 
 			if not (tff[0:4].capitalize() == Ligsff or tff[0:5].capitalize() == Ligsff or tff[0:6].capitalize() == Ligsff):
-				print("Your forcefiled as contained in receptor topology file is", tff)
-				print(tff, "forcefield does not match the preselected forcefield group:", Ligsff)
-				print("It is advisable to rerun and choose forcefield that match preselected")
+				print(f" The forcefield in yout topol file - {tff} - does not match the preselected group: {Ligsff}")
+				print("It is advisable to check pperror.txt file for details")
 				printNote("PLEASE NOTE - If you choose to continue: ")
-				print("A). Your forcefield group will be changed to match", tff)
-				print("B). By default, any actions related to former forcefield will be ignored")
+				print(f"****A). Your forcefield group will be changed to match {tff}")
+				print("****B). By default, any actions related to former forcefield will be ignored")
 
 				printNote("To rerun, Type YES/y. Otherwise press ENTER to continue with current selection")
-				response = tinput("Response: ", udefaults[4], "n")
+				response = tinput("Response: ", 30, "n")
 				if response.lower() == "yes" or response.lower() == "y":
+					selff = "select"
+					selwater = "select"
 					continue
 				else:
 					if tff[0:4].capitalize() == "Opls":
@@ -242,7 +215,7 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 					elif tff[0:6].capitalize() == "Charmm":
 						Ligsff = "Charmm"
 					else:
-						print(tff, "does not match any known forcefield group. Please rerun")
+						print(f"{tff} does not match any known forcefield group. Please check")
 						printNote("This may happen if you used a self created or modified forcefield. As such standard naming convention for forcefield should be used. E.g. Amber group of forcefields starts with amber, Gromos with gromos, etc. OR it may happen if generation of topol.top fails.")
 						printWarning("It is strongly recommended to abort the process, check uploaded file for correctness, and try again. Check README.md file for some troubleshooting tips")
 						printNote("To abort, Type YES/y. To continue anyway, press ENTER")
@@ -260,11 +233,10 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 							if sff == 'Amber' or sff == 'Charmm' or sff == 'Gromos' or sff == 'Opls':
 								os.rename(os.path.join(fPDB, sff), os.path.join(fPDB, Ligsff))
 
-					print("Your preferred forcefield group has been changed to", Ligsff)
-					ligsff_dir = os.path.join(fPDB, Ligsff)
+					print(f"Your preferred forcefield group has been changed to {Ligsff}")
 					break
 			else:
-				print("Your forcefiled as contained in topol.top file is", tff)
+				print(f"Your forcefiled as contained in topol.top file is {tff}")
 				break
 
 		rftopfile = "n" + RFtop
@@ -285,28 +257,24 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 			if udefaults[1] == "none":
 				print("No water model was detected for your system")
 			else:
-				print("Your water model as contained in topol.top file is ", udefaults[1])
+				print(f"Your water model as contained in topol.top file is {udefaults[1]}")
 			
 			printNote("Your selected default values are as follows: ")
-			print("		Default forcefield: ", udefaults[0])
-			print("		Default water model: ", udefaults[1])
-			print("		Default editconf -bt: ", udefaults[2])
-			print("		Default editconf -d: ", udefaults[3])
-			print("		Default input timeout: ", udefaults[4])
+			print(f"		Default forcefield: {udefaults[0]}")
+			print(f"		Default water model: {udefaults[1]}")
+			print(f"		Default editconf -bt: {udefaults[2]}")
+			print(f"		Default editconf -d: {udefaults[3]}")
+			print(f"		Default input timeout: {udefaults[4]}")
 			print("		Default mode: non-interactive")
 
 			# We will now lock these defaults by changing mode to C
 			udefaults[5] = "C"
-			time.sleep(10)
 
 		# Now, let us genreated alternative amber topology file for use with gromacs
-
 		print("Generating alternative topology file...")
-
 		time.sleep(5)
 
 		# Gather needed files to generate complex topologies
-
 		shutil.copy(os.path.join(workhost_dir, tleapfile), './')
 
 		if 'Peptides' in os.listdir(fPDB):		
@@ -349,7 +317,7 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 					os.rename(ppmore_gro, tlpgro)
 					os.rename(ppmore_top, tlptop)
 				except Exception as e:
-					print("One or more files could not be found. Renaming failed with error", e)
+					print(f"One or more files could not be found. Renaming failed with error {e}")
 
 		for file in ppatopsdir:
 			if file == 'tlpSolvated.gro':
@@ -359,13 +327,12 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 
 		os.chdir('../')
 
-		time.sleep(10)
-
 		####################################
 		# SOLVATION OF PROTEIN STRUCTURE   #
 		####################################
 		# Creating solvation directory and populating it with required files
 		print("Generating Solvated Structure ...")
+		time.sleep(2)
 
 		solname = "Solvation"
 		os.mkdir(solname)
@@ -382,24 +349,22 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 			time.sleep(5)
 			print('\n')
 		else:
-			printNote("The forecfield in topol.top did not match the preferred forcefield group selected at setup")
-			printNote("You may have changed the forecfield at a point. Please crosscheck and if need be rerun")
+			printNote("The forecfield in topol.top did not match the preferred forcefield group")
+			printNote("Please crosscheck and if need be rerun")
 			time.sleep(5)
 			print('\n')
 			
 		if tff[0:5].lower() == 'amber':
-			print(tff, "is an amber forcefield")
+			print(f"{tff} is an amber forcefield")
 
 		elif tff[0:6].lower() == 'charmm':
-			print(tff, "is a charmm forcefield")
+			print(f"{tff} is a charmm forcefield")
 
 		elif tff[0:6].lower() == 'gromos':
-			print(tff, "is a gromos forcefield")
+			print(f"{tff} is a gromos forcefield")
 			
 		elif tff[0:4].lower() == 'opls':
-			print(tff, "is an opls forcefield")
-
-		time.sleep(5)
+			print(f"{tff} is an opls forcefield")
 
 		# Prepare a version of amber tleap generated topology for suitable use with Gromacs
 		chkSoldir = os.listdir()
@@ -414,30 +379,29 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 
 		chkSoldir = os.listdir()
 		if (rftopfile in chkSoldir and rfpdbfile in chkSoldir):
-			print(rname, "Solvation in progress.....")
+			print(f"{rname} Solvation in progress.....")
 
 			shutil.copy(rftopfile, 'topol.top')
 			grosolvated = solvation(rfpdbfile, 'topol.top', selwater, selbt, seld)
 			
 			if not grosolvated == 'fsolvated.gro':
-				print(rname, "Solvation unsuccessful")
+				print(f"{rname} Solvation unsuccessful")
 
 			else:
-				print(rname, "Solvation was successful")
+				print(f"{rname} Solvation was successful")
 
 		else:
-			print("Required file(s) for " + rname + " solvation not found / generated. Solvation can not continue")
+			print(f"Required file(s) for {rname} solvation not found / generated. Solvation can not continue")
 			printNote("All needed files for manual solvation will be gathered into gmxmds subfolder")
 
 		os.chdir('../')
-
-		time.sleep(10)
 
 		######################################
 		# GATHERING FILES FOR MD SIMULATIONS #
 		######################################
 		# Making gmxmds directory and populate it with needed data
 		print("Gathering files needed for MDS run ...")
+		time.sleep(2)
 
 		gmxname = "gmxmds"
 		os.mkdir(gmxname)
@@ -447,29 +411,20 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 		for file in soldirlist:
 			if Path(file).suffix == ".itp":
 				shutil.copy(os.path.join(workhost_dir, 'Solvation', file), './')
-			elif file == "topol.top":
+			elif file == "topol.top" or file == "tlptopol.top" or file == "fsolvated.gro" or file == "ufsolvate.gro":
 				shutil.copy(os.path.join(workhost_dir, 'Solvation', file), './')
-			elif file == "tlptopol.top":
-				shutil.copy(os.path.join(workhost_dir, 'Solvation', file), './')
-			elif file == "fsolvated.gro":
-				shutil.copy(os.path.join(workhost_dir, 'Solvation', file), './')
-			elif file == "ufsolvate.gro":
-				shutil.copy(os.path.join(workhost_dir, 'Solvation', file), './')
-			elif file == 'tlpSolvated.gro' or file == 'tlpSolvated.top':
-				shutil.copy(os.path.join(workhost_dir, 'Solvation', file), './')
+			elif not ("fsolvated.gro" in soldirlist and defaults[1] == "none"):
+				if file == 'tlpSolvated.gro' or file == 'tlpSolvated.top':
+					shutil.copy(os.path.join(workhost_dir, 'Solvation', file), './')
 
 		# Removing files not needed
 		print("Removing files not needed for MDS from gmxmds directory")
 		print("These files can still be found in Solvation directory")
 
-		removal = ['tlptopol_mn.itp', 'ffnonbonded.itp']
-		for rmf in removal:
-			try:
+		gmxmdsrequired = ['fsolvated.gro', 'ufsolvate.gro', 'tlpSolvated.gro', 'tlpSolvated.top', 'tlpComplex.gro', 'tlpComplex.top', 'catComplex.gro', 'tlptopol.top', 'topol.top', 'LIGS_at.itp', 'LIGS_mt.itp', 'posre.itp']
+		for rmf in os.listdir():
+			if not rmf in gmxmdsrequired: 
 				os.remove(rmf)
-			except:
-				pass
-
-		time.sleep(5)
 
 		# If required, new restraint file can now be generated
 		listgmxmds = os.listdir()
@@ -489,64 +444,56 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 			if response.lower() == "yes" or response.lower() == "y":
 				success = 0
 				try:
-					subprocess.run('gmx genrestr -f ' + grosolvated + ' -o posre_udp.itp', shell=True)
-				except subprocess.CalledProcessError as e:
-					print(e)
-					print("Something went wrong, Trying again ....")			
-					time.sleep(5)
-					Err1 = os.system('gmx genrestr -f ' + grosolvated + ' -o posre_udp.itp')
-					if not Err1 == 0:
-						print("Generating restraint failed. Please try this manually")
-						success = 1
-
-				shutil.copy(os.path.join(scriptDIR, 'gmodsScripts', 'mt-topol2.itp'), './')
-				insertUDP = "; Include water topology"
-				insertdetails('topol.top', 'mt-topol2.itp', insertUDP)
-				os.remove('mt-topol2.itp')
+					subprocess.run(['gmx', 'genrestr', '-f', grosolvated, '-o', 'posre_udp.itp'], stderr=subprocess.STDOUT, stdout=f, check=True, text=True)
+				except subprocess.SubprocessError as e:
+					print(f"Generating restraint failed with error {e}. Please try this manually")
+					success = 1
 
 				if success == 0:
-					printNote("You have generated posre_udp.itp. To use it in MDS, define -DPOSRES_UDP in .mdp files")
-					printNote("OR if already define -DPOSRE, back up posre.itp and rename posre_udp.itp to posre.itp")
+					printNote("You have generated posre_udp.itp. To use it in MDS, define -DPOSRES_UDP in .mdp files. OR if already define -DPOSRE, back up posre.itp and rename posre_udp.itp to posre.itp")
 				else:
 					printNote("No posre_udp.itp has been generated. If need be, generate it manually")
 
 			else:
-				shutil.copy(os.path.join(scriptDIR, 'gmodsScripts', 'mt-topol2.itp'), './')
-
-				insertUDP = "; Include water topology"
-				insertdetails('topol.top', 'mt-topol2.itp', insertUDP)
-				os.remove('mt-topol2.itp')
-
 				printNote("No posre_udp.itp has been generated. If need be, generate it manually")
 
-			print("gmxmds subfolder has been populated and ready for use for MD simulation of", rname)
+			shutil.copy(os.path.join(scriptDIR, 'gmodsScripts', 'mt-topol2.itp'), './')
+			insertUDP = "; Include water topology"
+			insertdetails('topol.top', 'mt-topol2.itp', insertUDP)
+			os.remove('mt-topol2.itp')
+
+			print(f"gmxmds subfolder has been populated and ready for use for MD simulation of {rname}")
+			f.close()
 			return grosolvated, udefaults
 
 		elif "ufsolvate.gro" in listgmxmds:
 			grosolvated = "ufsolvate.gro"
 			print("Manual solvation and/or generation of restraint is required if necessary")
 			print("gmxmds subfolder has been populated and ready for use")
+			f.close()
 			return grosolvated, udefaults
 
 		elif "tlpSolvated.gro" in listgmxmds:
 			grosolvated = "tlpSolvated.gro"
 			print("Manual generation of restraint for tleap generated solvated complex is required, if necessary")
 			print("gmxmds subfolder has been populated and ready for use")
+			f.close()
 			return grosolvated, udefaults
 
 		else:
 			grosolvated = "none"
 			print("No solvated or unsolvated complex was detected in gmxmds subfolder. Please check")
+			f.close()
 			return grosolvated, udefaults
 
-	time.sleep(10)
+	time.sleep(5)
 
 	# Create working folder using the generated name
 	os.mkdir(foldername)
 	os.chdir(foldername)
 
 	work_dir = os.path.join(GMX_MDS, foldername)
-	print("pyGROMODS current workspace directory set to ", work_dir)
+	print(f"pyGROMODS current workspace directory set to {work_dir}")
 	
 	# Copy sample mdp and peptide files to the working directory
 	os.mkdir('samples')
@@ -564,10 +511,8 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 
 	os.chdir('../')
 
-	time.sleep(5)
-
 	if 'Peptides' in listfPDB:		
-		print("pyGROMODS Peptides project directory set to ", work_dir)
+		print(f"pyGROMODS Peptides project directory set to {work_dir}")
 	
 		pepname = "Peptide_"
 		count = 0
@@ -579,7 +524,7 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 			os.chdir(pep_dir)
 		
 			workhost_dir = os.path.join(work_dir, pep_dir)
-			print("Current project host directory set to ", workhost_dir)
+			print(f"Current project host directory set to {workhost_dir}")
 
 			####################################################
 			# GENERATE PROTEIN STRUCTURE FROM PEPTIDE SEQUENCE #
@@ -597,24 +542,22 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 			shutil.copy(pep, 'pep.in')
 
 			peppdb_dir = os.path.join(workhost_dir, 'pepPDB')
-			print("Peptide structure data directory set to ", peppdb_dir)
+			print(f"Peptide structure data directory set to {peppdb_dir}")
 
 			printNote("Convertion of Peptide sequence into pdb structure file...")
 
 			# Run amber tleap to convert to pdb
+			fpep = open("ppdberror.txt", "a")
 			try:
-				subprocess.run('tleap -s -f peptopdbtleap.in', shell=True)
-			except subprocess.CalledProcessError as e:
-				print(e)
-				print("Something went wrong, Trying again ....")			
-				time.sleep(5)
-				Err2 = os.system('tleap -s -f peptopdbtleap.in')
-				if not Err2 == 0:
-					printWarning("Peptide preparation failed. The process will be aborted")
-					printNote("Check the above error and make corrections and rerun. Read README.md for help")
-					raise Exception("Process Aborted. Make necessary corrections and restart")
+				subprocess.run(['tleap', '-s', '-f', 'peptopdbtleap.in'], stderr=subprocess.STDOUT, stdout=fpep, check=True, text=True)
+			except subprocess.SubprocessError as e:
+				printWarning("Peptide preparation failed with above error. The process will be aborted")
+				printNote("Check the above error and make corrections and rerun. Read README.md for help")
+				fpep.close()
+				raise Exception(f"Process Aborted with error: {e}. Make necessary corrections and restart")
 
 			shutil.copy('sequence.pdb', '../')
+			fpep.close()
 			os.chdir('../')
 			os.rename('sequence.pdb', pname)
 
@@ -632,10 +575,9 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 					os.remove(fitem)
 
 			os.chdir('../')
-		os.chdir('../')
 
 	if 'Proteins' in listfPDB:
-		print("pyGROMODS Proteins project directory set to ", work_dir)
+		print(f"pyGROMODS Proteins project directory set to {work_dir}")
 
 		proname = "Protein_"
 		count = 0
@@ -647,7 +589,7 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 			os.chdir(pro_dir)
 
 			workhost_dir = os.path.join(work_dir, pro_dir)
-			print("Current project host directory set to ", workhost_dir)
+			print(f"Current project host directory set to {workhost_dir}")
 
 			rrname = 'protein' + str(count)
 			prname = rrname + '.pdb'
@@ -665,7 +607,6 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 					os.remove(fitem)
 
 			os.chdir('../') 
-		os.chdir('../')
 
 	print('\n')
 	printNote("Setup with PPmore route completed. Please analyse the contents of 'check', 'check1' and/or 'check2' files and their backup versions in 'Solvation' folder before proceeding with MDS")

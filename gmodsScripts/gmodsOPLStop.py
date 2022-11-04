@@ -1,24 +1,9 @@
 #!/usr/bin/env python
 
 """
-    Requirements: Python 3 or higher
-                  Antechamber and related AmberTools
-                  OpenBabel (strongly recommended for use with acpype)
-				  acpype (latest version recommended with all its requirements)
-				  Gromacs (Compulsory)
-                  flask (Compulsory)
-                  flaskwebgui (recommended)
-                  pyfladesk (recommended)
-
     This code is released under GNU General Public License V3.
 
           <<<  NO WARRANTY AT ALL!!!  >>>
-
-    It was inspired by:
-
-    - CS50 online training for which this code serves as part of the final project
-
-	- PLEASE Read the README.md file and also follow instructions on the GUI and/or Terminal
 
 	Daniyan, Oluwatoyin Michael, B.Pharm. M.Sc. (Pharmacology) and Ph.D. (Science) Biochemistry
     Department of Pharmacology, Faculty of Pharmacy
@@ -30,27 +15,19 @@
 
 import sys
 
-if sys.version_info[0] < 3:
-	raise Exception("Python 3 or a more recent version is required.")
+if sys.version_info < (3, 5):
+	raise Exception("Python 3.5 or a more recent version is required.")
 
 import os
 import subprocess
 from pathlib import Path
 import time
 import shutil
-import random
-import string
-import math
 import glob
-from colored import fore, back, style
-from tkinter import Tk, filedialog
-from inputimeout import inputimeout, TimeoutOccurred
-from pytimedinput import timedInput
 
-from gmodsScripts.gmodsHelpers import indexoflines, printWarning, printNote, select_folder, gmxtop
+from gmodsScripts.gmodsHelpers import indexoflines, printWarning, printNote, gmxtop
 
 def OPLStop(LFtop, ff, name):
-	topcwdir = Path.cwd()
 	mergename = "opls" + name + ".top"
 	oplstopopen = open(mergename, "+a")
 
@@ -66,7 +43,7 @@ def OPLStop(LFtop, ff, name):
 
 	# We shall check for and remove duplicates in atomtypes between gmx standard and amber/tleap generated 
 	if not ff[0:4] == 'opls':
-		print(ff, "is not an opls forcefield. Generation can not continue")
+		print(ff, "is not an opls forcefield. Generation cannot continue")
 		return LFtop
 
 	else:
@@ -81,32 +58,29 @@ def OPLStop(LFtop, ff, name):
 	while True:
 		nT += 1
 		if nT > 3:
-			break
+			print("You have exceeded maximum trying attempts")
+			printWarning("Checked version of tlptopol cannot be generated")
+			print("The platform will use the unchecked original file")
+			time.sleep(5)
+			return LFtop
 
 		gmxtopff, topffdir = gmxtop()
 		gmxtopdir = os.path.join(topffdir, ff)
 		
-		if not len(gmxtopff) > 0:
-			print(f"The specified directory, {gmxtopdir}, is not a valid Gromacs forcefield directory")
-			printNote("Trying again ...")
-			continue
-			
-		elif not Path(ff).stem in gmxtopff:
-			print(f"The specified forcefield, {ff}, is missing in the selected/detected directory")
-			printNote("You might have selected a directory with an incomplete list of forcefields")
-			printNote("Trying again ...")
-			continue
-			
-		elif not os.path.isdir(gmxtopdir):
-			print(gmxtopdir, "that was autodetected, is not a valid forcefield directory")
-			printNote("Trying again ...")
-			continue
+		if not (len(gmxtopff) > 0 or Path(ff).stem in gmxtopff):
+			print(f"The specified forcefield, {ff}, is missing from the selected directory")
+			response = input("To continue anyway, type YES/y. Otherwise, press ENTER: ")
+			if not (response.lower() == "yes" or response.lower() == "y"):
+				print("Trying again ...")
+				continue
+			else:
+				printWarning("Checked version of tlptopol cannot be generated")
+				print("The platform will use the unchecked original file")
+				time.sleep(5)
+				return LFtop
 			
 		else:
-			print("Your topology directory is", gmxtopdir)
 			break
-
-	time.sleep(5)
 
 	lsgmxtopdir = os.listdir(gmxtopdir)
 	for tp in lsgmxtopdir:
@@ -202,37 +176,43 @@ def OPLStop(LFtop, ff, name):
 
 
 def OPLSacpype(LFtop, lig, name):
-	tlpcwdir = Path.cwd()
+	# Create a temporary working folder and copy needed files into it
+	f = open("oplserror.txt", "a")
 
-	lftopindex = indexoflines(LFtop)
-	mtt = lftopindex['moleculetype'] + 2
-	mtopen = open(LFtop, "r")
-	mtread = mtopen.readlines()
-	mtname = mtread[mtt].split()[0]
-	mtopen.close()
+	os.mkdir("ACPYPEDIR")
+	shutil.copy(lig, os.path.join(Path.cwd(), "ACPYPEDIR"))
+	os.chdir("ACPYPEDIR")
+
+	# Run acpype to generate opls compatible topoloy file 
+	try:
+		subprocess.run(['acpype', '-i', lig, '-b', name], stderr=subprocess.STDOUT, stdout=f, check=True, text=True)
+	except subprocess.SubprocessError as e:
+		print(f"acpype failed with error {e}\n. Ligand preparation failed")
+		return LFtop
+
+	acpypefolder = []
+	for folder in os.listdir():
+		if os.path.isdir(folder):
+			acpypefolder.append(folder)
+			os.chdir(folder)
+			for Afile in os.listdir():
+				shutil.copy(Afile, '../')
+			os.chdir('../')
+			shutil.rmtree(folder)
+
+	if not len(acpypefolder) > 0:
+		print("No acpype generated folder was detected. This process may fail")
 
 	try:
-		subprocess.run('acpype -i ' + lig + ' -a amber2 -b ' + mtname, shell=True)
+		shutil.move(glob.glob("*_GMX_OPLS.top")[0], "oplstop.top")		
+		shutil.move(glob.glob("*_GMX_OPLS.itp")[0], "oplstop.itp")		
 	except:
+		printWarning("Some files failed renaming. Trying again")
 		try:
-			os.system('acpype.py -i ' + lig + ' -a amber2 -b ' + mtname)
+			shutil.move(glob.glob("*_GMX.top")[0], "oplstop.top")		
+			shutil.move(glob.glob("*_GMX.itp")[0], "oplstop.itp")		
 		except:
-			return LFtop
-
-	acpypefolder = mtname + '.acpype'
-	os.chdir(acpypefolder)
-	for acpfile in os.listdir():
-		if not (Path(acpfile).suffix == ".itp" or Path(acpfile).suffix == ".top"):
-			os.remove(acpfile)
-	
-	try:
-		subprocess.run('mv *_GMX_OPLS.top oplstop.top', shell=True)
-		subprocess.run('mv *_GMX_OPLS.itp oplstop.itp', shell=True)
-	except:
-		try:
-			os.system('mv *_GMX.top oplstop.top')
-			os.system('mv *_GMX.top oplstop.itp')
-		except:
+			print("Error persist with renaming. Trying alternative")
 			return LFtop
 
 	mergename = "opls" + name + ".top"

@@ -1,24 +1,9 @@
 #!/usr/bin/env python
 
 """
-    Requirements: Python 3 or higher
-                  Antechamber and related AmberTools
-                  OpenBabel (strongly recommended for use with acpype)
-				  acpype (latest version recommended with all its requirements)
-				  Gromacs (Compulsory)
-                  flask (Compulsory)
-                  flaskwebgui (recommended)
-                  pyfladesk (recommended)
-
     This code is released under GNU General Public License V3.
 
           <<<  NO WARRANTY AT ALL!!!  >>>
-
-    It was inspired by:
-
-    - CS50 online training for which this code serves as part of the final project
-
-	- PLEASE Read the README.md file and also follow instructions on the GUI and/or Terminal
 
 	Daniyan, Oluwatoyin Michael, B.Pharm. M.Sc. (Pharmacology) and Ph.D. (Science) Biochemistry
     Department of Pharmacology, Faculty of Pharmacy
@@ -30,26 +15,18 @@
 
 import sys
 
-if sys.version_info[0] < 3:
-	raise Exception("Python 3 or a more recent version is required.")
+if sys.version_info < (3, 5):
+	raise Exception("Python 3.5 or a more recent version is required.")
 
 import os
-import subprocess
 from pathlib import Path
 import time
 import shutil
-import random
-import string
-import math
-import glob
-from colored import fore, back, style
-from tkinter import Tk, filedialog
-from inputimeout import inputimeout, TimeoutOccurred
-from pytimedinput import timedInput
 
-from gmodsScripts.gmodsHelpers import topolsplit, insertdetails, indexoflines, printWarning, printNote, tinput, select_folder, gmxtop
+from gmodsScripts.gmodsHelpers import insertdetails, indexoflines, printWarning, printNote, tinput, gmxtop
 
 def TLtopol(xrecfile, tlpcomtop, tff):
+	print('\n')
 	tlpcwdir = Path.cwd()
 	tltopol = "tlptopol.top"
 	tltopolopen = open(tltopol, "+a")
@@ -120,7 +97,7 @@ def TLtopol(xrecfile, tlpcomtop, tff):
 	insertdetails(tltopol, tlmnfile, insertL)
 
 	# We shall check for and remove duplicates in atomtypes between gmx standard and amber/tleap generated 
-	#Determine the appropriate forcefield directory selected at run time
+	# Determine the appropriate forcefield directory selected at run time
 
 	tlpindex = indexoflines(tltopol)
 	atlp = int(tlpindex['atomtypes'])
@@ -141,18 +118,15 @@ def TLtopol(xrecfile, tlpcomtop, tff):
 		else:
 			nf += 1
 
-	print("Your detected forcefiled directory is", ff)
 	if not ff == tff:
-		print("However", ff, "does not match what was detected earlier", tff)
-		print("It is recommended to use the forcefield detected earlier")
-		print("To use the recommended forcefield {", tff, "}, type YES/y")
+		print('\n')
+		print(f"The detected {ff} does not match what was detected earlier {tff}")
+		print(f"To use the recommended forcefield, '{tff}', type YES/y")
 		print("To continue with currently detected forcefield {", ff, "}, press ENTER")
 		response = tinput("Response: ", 30, "y")
 		if (response.lower() == "yes" or response.lower() == "y"):
 			ff = tff
-			print("The detected directory has been changed to", ff)
-	else:
-		print(ff, "matched the earlier detected forcefield.")
+			print(f"The forcefield directory has been changed to {ff}")
 		
 	# Get the absolute path to the forcefield directory and copy ffnonbonded.itp file
 	gmxtopdir = " "
@@ -163,32 +137,31 @@ def TLtopol(xrecfile, tlpcomtop, tff):
 	while True:
 		nT += 1
 		if nT > 3:
-			break
+			print("You have exceeded maximum trying attempts")
+			printWarning("Checked version of tlptopol cannot be generated")
+			print("The platform will use the unchecked original file")
+			time.sleep(5)
+			print('\n')
+			return tlpcomtop
 
 		gmxtopff, topffdir = gmxtop()
 		gmxtopdir = os.path.join(topffdir, ff)
 		
-		if not len(gmxtopff) > 0:
-			print(f"The specified directory, {gmxtopdir}, is not a valid Gromacs forcefield directory")
-			printNote("Trying again ...")
-			continue
-			
-		elif not Path(ff).stem in gmxtopff:
-			print(f"The specified forcefield, {ff}, is missing in the selected/detected directory")
-			printNote("You might have selected a directory with an incomplete list of forcefields")
-			printNote("Trying again ...")
-			continue
-			
-		elif not os.path.isdir(gmxtopdir):
-			print(gmxtopdir, "that was autodetected, is not a valid forcefield directory")
-			printNote("Trying again ...")
-			continue
+		if not (len(gmxtopff) > 0 or Path(ff).stem in gmxtopff):
+			print(f"The specified forcefield, {ff}, is missing in the selected directory")
+			response = input("To continue anyway, type YES/y. Otherwise, press ENTER: ")
+			if not (response.lower() == "yes" or response.lower() == "y"):
+				print("Trying again ...")
+				continue
+			else:
+				printWarning("Checked version of tlptopol cannot be generated")
+				print("The platform will use the unchecked original file")
+				time.sleep(5)
+				print('\n')
+				return tlpcomtop
 			
 		else:
-			print("Your topology directory is", gmxtopdir)
 			break
-
-	time.sleep(5)
 
 	lsgmxtopdir = os.listdir(gmxtopdir)
 	for tp in lsgmxtopdir:
@@ -292,17 +265,17 @@ def TLtopol(xrecfile, tlpcomtop, tff):
 	os.rename('ntlptopol.top', 'tlptopol.top')
 
 	# Check to be sure tlptopol.top has been successfully generated
+	print('\n')
 	checktlp = os.listdir()
 	if not "tlptopol.top" in checktlp:
-		printWarning("Something went wrong. Generating tlptopol.top file was not successful")
+		printWarning("Generating tlptopol.top file was not successful")
 		print("If you need it later, check and correct any error, then rerun")
 		return tlpcomtop
 	else:
 		printNote("tlptopol.top has been generated successfully")
-		printNote("PLEASE NOTE:")
-		print("Two topology files are now included in solvation folder - topol.top and tlptopol.top")
-		print("By default, topol.top will be used. If topol.top failed, tlptopol will be used")
-		print("If not used now, it will be copied into the gmxmds subfolder")
-		print("To use it later, rename to topol.top and backup the original topol.top")
-		time.sleep(10)
+		print("PLEASE NOTE:")
+		print("**** Two topology files have been generated - topol.top and tlptopol.top")
+		print("**** By default, topol.top will be used, while tlptopol serves as backup")
+		time.sleep(5)
+
 		return 'tlptopol.top'

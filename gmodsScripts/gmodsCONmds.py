@@ -1,24 +1,9 @@
 #!/usr/bin/env python
 
 """
-    Requirements: Python 3 or higher
-                    Antechamber and related AmberTools
-                    OpenBabel (strongly recommended for use with acpype)
-                    acpype (latest version recommended with all its requirements)
-                    Gromacs (Compulsory)
-                    flask (Compulsory)
-                    flaskwebgui (recommended)
-                    pyfladesk (recommended)
-
     This code is released under GNU General Public License V3.
 
             <<<  NO WARRANTY AT ALL!!!  >>>
-
-    It was inspired by:
-
-    - CS50 online training for which this code serves as part of the final project
-
-    - PLEASE Read the README.md file and also follow instructions on the GUI and/or Terminal
 
     Daniyan, Oluwatoyin Michael, B.Pharm. M.Sc. (Pharmacology) and Ph.D. (Science) Biochemistry
     Department of Pharmacology, Faculty of Pharmacy
@@ -29,26 +14,19 @@
 """
 import sys
 
-if sys.version_info[0] < 3:
-    raise Exception("Python 3 or a more recent version is required.")
+if sys.version_info < (3, 5):
+    raise Exception("Python 3.5 or a more recent version is required.")
 
 import os
 import subprocess
 from pathlib import Path
 import time
 import shutil
-import random
-import string
-import math
-import glob
 
-from tkinter import Tk, filedialog
-from inputimeout import inputimeout, TimeoutOccurred
-from pytimedinput import timedInput
-
-from gmodsScripts.gmodsHelpers import printWarning, printNote, select_folder, tinput
+from gmodsScripts.gmodsHelpers import printWarning, printNote, tinput, cleanup
 
 def nvtSCmds():
+    print('\n')
     # Set global activation variables to include opncl headers in work subdirectories
     opencl_activate = 0
 
@@ -64,9 +42,9 @@ def nvtSCmds():
 
     # User can set marwarn for grompp if needed
     maxwarn = 0
-    print("The default value for -maxwarn is 0. You may wish to increase this as needed")
-    print("To change this value, type YES/y. Otherwise, press ENTER to continue with the default")
-    response = tinput("Response: ", 30, "n")
+    print("The default value for -maxwarn is 0. To change the value: ")
+    print("Type YES/y. Otherwise, press ENTER to continue with the default")
+    response = tinput("Response: ", 20, "n")
     if response.lower() == "yes" or response.lower() == "y":
         while True:
             maxwarn = input("Change maxwarn to: ")
@@ -74,15 +52,13 @@ def nvtSCmds():
                 print("You must supply digit value for maxwarn to continue")
                 continue
             else:
-                print("maxwarn has been changed to: ", maxwarn)
+                print(f"maxwarn has been changed to: {maxwarn}")
                 break
-
-    time.sleep(5)
 
     #####################
     # NVT EQUILIBRATION #
     #####################
-    print("Starting Constant Volume Equilibration...")
+    print("Executing: Constant Volume Equilibration...")
 
     try:
         os.mkdir("NVT")
@@ -91,43 +67,39 @@ def nvtSCmds():
         os.mkdir("NVT")
 
     os.chdir("NVT")
+    fnvt = open("nvterror.txt", "a")
     if opencl_activate > 0:
         oclfiles = os.listdir('../../opencl')
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
-    try:
-        subprocess.run('gmx grompp -f ../mdps/equnvt.mdp -c ../EM/minzcg.gro -r ../EM/minzcg.gro -p ../topol.top -o equnvt.tpr -maxwarn ' + str(maxwarn), shell=True)
-    except subprocess.CalledProcessError as e:
-        print(e)
-        print("Something went wrong with above error. Trying again...")
-        Err2a = os.system('gmx grompp -f ../mdps/equnvt.mdp -c ../EM/minzcg.gro -r ../EM/minzcg.gro -p ../topol.top -o equnvt.tpr -maxwarn ' + str(maxwarn))
-        if not Err2a == 0:
-            print("Generating needed files for NVT failed. Please check error message")
+    cmdnvt = ['gmx', 'grompp', '-f', '../mdps/equnvt.mdp', '-c', '../EM/minzcg.gro', '-r', '../EM/minzcg.gro', '-p', '../topol.top', '-o', 'equnvt.tpr', '-maxwarn', str(maxwarn)]
 
     try:
-        subprocess.run('gmx mdrun -deffnm equnvt', shell=True)
-    except subprocess.CalledProcessError as e:
-        Err2b = os.system('gmx mdrun -deffnm equnvt')
-        if not Err2b == 0:
-            printWarning("Something was not right")
+        subprocess.run(cmdnvt, stderr=subprocess.STDOUT, stdout=fnvt, check=True, text=True)
+        subprocess.run(['gmx', 'mdrun', '-deffnm', 'equnvt'], stderr=subprocess.STDOUT, stdout=fnvt, check=True, text=True)
+    except subprocess.SubprocessError as e:
+        print(e)
+        printWarning("Something was not right with above error. Checking....")
 
     if not ('equnvt.tpr' in os.listdir() or 'equnvt.gro' in os.listdir()):
         printWarning("There were errors during Constant Volume Equilibration Phase")
-        printNote("It is advisable to abort the processs, check your files and errors and rerun")
-        response = tinput("To abort type YES/y. Otherwise process will continue anyway ", 10, "y")
+        printNote("It is advisable to abort, and check nvterror.txt file for details")
+        response = tinput("To abort type YES/y. Otherwise press ENTER to continue anyway: ", 10, "y")
         if response.lower() == "yes" or response.lower() == "y":
+            fnvt.close()
             raise Exception("Process Aborted. Make necessary corrections and restart")
     else:
         printNote("Constant Volume Equilibration Successfully Completed")
+        fnvt.close()
 
     os.chdir('../')
-    time.sleep(10)
+    time.sleep(5)
 
     #####################
     # NPT EQUILIBRATION #
     #####################
-    print("Starting Constant Pressure Equilibration...")
+    print("Executing: Constant Pressure Equilibration...")
 
     try:
         os.mkdir("NPT")
@@ -136,43 +108,37 @@ def nvtSCmds():
         os.mkdir("NPT")
 
     os.chdir("NPT")
+    fnpt = open("npterror.txt", "a")
     if opencl_activate > 0:
         oclfiles = os.listdir('../../opencl')
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
+    cmdnpt = ['gmx', 'grompp', '-f', '../mdps/equnpt.mdp', '-c', '../NVT/equnvt.gro', '-r', '../NVT/equnvt.gro', '-p', '../topol.top', '-t', '../NVT/equnvt.cpt', '-o', 'equnpt.tpr', '-maxwarn', str(maxwarn)]
     try:
-        subprocess.run('gmx grompp -f ../mdps/equnpt.mdp -c ../NVT/equnvt.gro -r ../NVT/equnvt.gro -p ../topol.top -t ../NVT/equnvt.cpt -o equnpt.tpr -maxwarn ' + str(maxwarn), shell=True)
-    except subprocess.CalledProcessError as e:
-        print(e)
-        print("Something went wrong with above error. Trying again...")
-        Err3a = os.system('gmx grompp -f ../mdps/equnpt.mdp -c ../NVT/equnvt.gro -r ../NVT/equnvt.gro -p ../topol.top -t ../NVT/equnvt.cpt -o equnpt.tpr -maxwarn ' + str(maxwarn))
-        if not Err3a == 0:
-            print("Generating needed files for NPT failed. Please check error message")
-
-    try:
-        subprocess.run('gmx mdrun -deffnm equnpt', shell=True)
-    except subprocess.CalledProcessError as e:
-        Err3b = os.system('gmx mdrun -deffnm equnpt')
-        if not Err3b == 0:
-            printWarning("Something was not right")
+        subprocess.run(cmdnpt, stderr=subprocess.STDOUT, stdout=fnpt, check=True, text=True)
+        subprocess.run(['gmx', 'mdrun', '-deffnm', 'equnpt'], stderr=subprocess.STDOUT, stdout=fnpt, check=True, text=True)
+    except subprocess.SubprocessError as e:
+        printWarning("Something was not right. Checking...")
 
     if not ('equnpt.tpr' in os.listdir() or 'equnpt.gro' in os.listdir()):
         printWarning("There were errors during Constant Pressure Equilibration Phase")
-        printNote("It is advisable to abort the processs, check your files and errors and rerun")
-        response = tinput("To abort type YES/y. Otherwise process will continue anyway ", 10, "y")
+        printNote("It is advisable to abort. Please check npterror.txt file for details")
+        response = tinput("To abort type YES/y. Otherwise press ENTER to continue anyway: ", 10, "y")
         if response.lower() == "yes" or response.lower() == "y":
+            fnpt.close()
             raise Exception("Process Aborted. Make necessary corrections and restart")
     else:
         printNote("Constant Pressure Equilibration Successfully Completed")
+        fnpt.close()
 
     os.chdir('../')
-    time.sleep(10)
+    time.sleep(5)
 
     ####################
     # EQ PRODUCTION MD #
     ####################
-    print("Starting Equilibration Production MD simulation...")
+    print("Executing: Equilibration Production MD simulation...")
 
     try:
         os.mkdir("EMD")
@@ -181,43 +147,37 @@ def nvtSCmds():
         os.mkdir("EMD")
 
     os.chdir("EMD")
+    feq = open("eqerror.txt", "a")
     if opencl_activate > 0:
         oclfiles = os.listdir('../../opencl')
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
+    cmdeq = ['gmx', 'grompp', '-f', '../mdps/equpmd.mdp', '-c', '../NPT/equnpt.gro', '-r', '../NPT/equnpt.gro', '-p', '../topol.top', '-t', '../NPT/equnpt.cpt', '-o', 'equpmd.tpr', '-maxwarn', str(maxwarn)]
     try:
-        subprocess.run('gmx grompp -f ../mdps/equpmd.mdp -c ../NPT/equnpt.gro -r ../NPT/equnpt.gro -p ../topol.top -t ../NPT/equnpt.cpt -o equpmd.tpr -maxwarn ' + str(maxwarn), shell=True)
-    except subprocess.CalledProcessError as e:
-        print(e)
-        print("Something went wrong with above error. Trying again...")
-        Err4a = os.system('gmx grompp -f ../mdps/equpmd.mdp -c ../NPT/equnpt.gro -r ../NPT/equnpt.gro -p ../topol.top -t ../NPT/equnpt.cpt -o equpmd.tpr -maxwarn ' + str(maxwarn))
-        if not Err4a == 0:
-            print("Generating needed files for EQ Production MD failed. Please check error message")
-
-    try:
-        subprocess.run('gmx mdrun -deffnm equpmd', shell=True)
-    except subprocess.CalledProcessError as e:
-        Err4b = os.system('gmx mdrun -deffnm equpmd')
-        if not Err4b == 0:
-            printWarning("Something was not right")
+        subprocess.run(cmdeq, stderr=subprocess.STDOUT, stdout=feq, check=True, text=True)
+        subprocess.run(['gmx', 'mdrun', '-deffnm', 'equpmd'], stderr=subprocess.STDOUT, stdout=feq, check=True, text=True)
+    except subprocess.SubprocessError as e:
+        printWarning("Something was not right. Checking...")
 
     if not ('equpmd.tpr' in os.listdir() or 'equpmd.gro' in os.listdir()):
         printWarning("There were errors during Equilibration Production MD Phase")
-        printNote("It is advisable to abort the processs, check your files and errors and rerun")
-        response = tinput("To abort type YES/y. Otherwise process will continue anyway ", 10, "y")
+        printNote("It is advisable to abort, and check eqerror.txt file for details")
+        response = tinput("To abort type YES/y. Otherwise press ENTER to continue anyway ", 10, "y")
         if response.lower() == "yes" or response.lower() == "y":
+            feq.close()
             raise Exception("Process Aborted. Make necessary corrections and restart")
     else:
         printNote("Equilibration Production MD Successfully Completed")
+        feq.close()
 
     os.chdir('../')
-    time.sleep(10)
+    time.sleep(5)
 
     #################
     # PRODUCTION MD #
     #################
-    print("Starting Production MD simulation...")
+    print("Executing: Production MD simulation...")
 
     try:
         os.mkdir("PMD")
@@ -226,33 +186,26 @@ def nvtSCmds():
         os.mkdir("PMD")
 
     os.chdir("PMD")
+    fpmd = open("pmderror.txt", "a")
     if opencl_activate > 0:
         oclfiles = os.listdir('../../opencl')
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
-    try:
-        subprocess.run('gmx grompp -f ../mdps/pmds.mdp -c ../EMD/equpmd.gro -r ../EMD/equpmd.gro -p ../topol.top -t ../EMD/equpmd.cpt -o pmds.tpr -maxwarn ' + str(maxwarn), shell=True)
-    except subprocess.CalledProcessError as e:
-        print(e)
-        print("Something went wrong with above error. Trying again...")
-        Err5a = os.system('gmx grompp -f ../mdps/pmds.mdp -c ../EMD/equpmd.gro -r ../EMD/equpmd.gro -p ../topol.top -t ../EMD/equpmd.cpt -o pmds.tpr -maxwarn ' + str(maxwarn))
-        if not Err4a == 0:
-            print("Generating needed files for Production MD failed. Please check error message")
+    cmdpmd = ['gmx', 'grompp', '-f', '../mdps/pmds.mdp', '-c', '../EMD/equpmd.gro', '-r', '../EMD/equpmd.gro', '-p', '../topol.top', '-t', '../EMD/equpmd.cpt', '-o', 'pmds.tpr', '-maxwarn', str(maxwarn)]
 
     try:
-        subprocess.run('gmx mdrun -deffnm pmds', shell=True)
-    except subprocess.CalledProcessError as e:
-        Err5b = os.system('gmx mdrun -deffnm pmds')
-        if not Err5b == 0:
-            printWarning("Something was not right")
+        subprocess.run(cmdpmd, stderr=subprocess.STDOUT, stdout=fpmd, check=True, text=True)
+        subprocess.run(['gmx', 'mdrun', '-deffnm', 'pmds'], stderr=subprocess.STDOUT, stdout=fpmd, check=True, text=True)
+    except subprocess.SubprocessError as e:
+        printWarning("Something was not right. Checking...")
 
     if not ('pmds.tpr' in os.listdir() or 'pmds.gro' in os.listdir()):
-        printWarning("There were errors during Production MD Phase")
-        printNote("Please check your files and errors and be sure all is in order. Otherwise rerun")
+        printWarning("There were errors during Production MD Phase. Check pmderror.txt file for details")
     else:
         printNote("Production MD Successfully Completed")
 
+    fpmd.close()
     os.chdir('../')
     time.sleep(5)
 
@@ -280,7 +233,7 @@ def nvtSCmds():
 
         os.chdir('../../')
         try:
-            shutil.rmtree(opencldir)
+            shutil.rmtree("opencl")
         except:
             pass
 
@@ -289,7 +242,7 @@ def nvtSCmds():
     else:
         os.chdir('../../')
 
-    time.sleep(10)
+    time.sleep(5)
 
     # End
     printNote("Ending. Continuation MDS Job Completed Successfully")
@@ -313,7 +266,7 @@ def nptSCmds():
     maxwarn = 0
     print("The default value for -maxwarn is 0. You may wish to increase this as needed")
     print("To change this value, type YES/y. Otherwise, press ENTER to continue with the default")
-    response = tinput("Response: ", 10, "n")
+    response = tinput("Response: ", 20, "n")
     if response.lower() == "yes" or response.lower() == "y":
         while True:
             maxwarn = input("Change maxwarn to: ")
@@ -321,7 +274,7 @@ def nptSCmds():
                 print("You must supply digit value for maxwarn to continue")
                 continue
             else:
-                print("maxwarn has been changed to: ", maxwarn)
+                print(f"maxwarn has been changed to: {maxwarn}")
                 break
 
     time.sleep(5)
@@ -329,7 +282,7 @@ def nptSCmds():
     #####################
     # NPT EQUILIBRATION #
     #####################
-    print("Starting Constant Pressure Equilibration...")
+    print("Executing: Constant Pressure Equilibration...")
 
     try:
         os.mkdir("NPT")
@@ -338,43 +291,37 @@ def nptSCmds():
         os.mkdir("NPT")
 
     os.chdir("NPT")
+    fnpt = open("npterror.txt", "a")
     if opencl_activate > 0:
         oclfiles = os.listdir('../../opencl')
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
+    cmdnpt = ['gmx', 'grompp', '-f', '../mdps/equnpt.mdp', '-c', '../NVT/equnvt.gro', '-r', '../NVT/equnvt.gro', '-p', '../topol.top', '-t', '../NVT/equnvt.cpt', '-o', 'equnpt.tpr', '-maxwarn', str(maxwarn)]
     try:
-        subprocess.run('gmx grompp -f ../mdps/equnpt.mdp -c ../NVT/equnvt.gro -r ../NVT/equnvt.gro -p ../topol.top -t ../NVT/equnvt.cpt -o equnpt.tpr -maxwarn ' + str(maxwarn), shell=True)
-    except subprocess.CalledProcessError as e:
-        print(e)
-        print("Something went wrong with above error. Trying again...")
-        Err3a = os.system('gmx grompp -f ../mdps/equnpt.mdp -c ../NVT/equnvt.gro -r ../NVT/equnvt.gro -p ../topol.top -t ../NVT/equnvt.cpt -o equnpt.tpr -maxwarn ' + str(maxwarn))
-        if not Err3a == 0:
-            print("Generating needed files for NPT failed. Please check error message")
-
-    try:
-        subprocess.run('gmx mdrun -deffnm equnpt', shell=True)
-    except subprocess.CalledProcessError as e:
-        Err3b = os.system('gmx mdrun -deffnm equnpt')
-        if not Err3b == 0:
-            printWarning("Something was not right")
+        subprocess.run(cmdnpt, stderr=subprocess.STDOUT, stdout=fnpt, check=True, text=True)
+        subprocess.run(['gmx', 'mdrun', '-deffnm', 'equnpt'], stderr=subprocess.STDOUT, stdout=fnpt, check=True, text=True)
+    except subprocess.SubprocessError as e:
+        printWarning("Something was not right. Checking...")
 
     if not ('equnpt.tpr' in os.listdir() or 'equnpt.gro' in os.listdir()):
         printWarning("There were errors during Constant Pressure Equilibration Phase")
-        printNote("It is advisable to abort the processs, check your files and errors and rerun")
-        response = tinput("To abort type YES/y. Otherwise process will continue anyway ", 10, "y")
+        printNote("It is advisable to abort. Please check npterror.txt file for details")
+        response = tinput("To abort type YES/y. Otherwise press ENTER to continue anyway: ", 10, "y")
         if response.lower() == "yes" or response.lower() == "y":
+            fnpt.close()
             raise Exception("Process Aborted. Make necessary corrections and restart")
     else:
         printNote("Constant Pressure Equilibration Successfully Completed")
+        fnpt.close()
 
     os.chdir('../')
-    time.sleep(10)
+    time.sleep(5)
 
     ####################
     # EQ PRODUCTION MD #
     ####################
-    print("Starting Equilibration Production MD simulation...")
+    print("Executing: Equilibration Production MD simulation...")
 
     try:
         os.mkdir("EMD")
@@ -383,43 +330,37 @@ def nptSCmds():
         os.mkdir("EMD")
 
     os.chdir("EMD")
+    feq = open("eqerror.txt", "a")
     if opencl_activate > 0:
         oclfiles = os.listdir('../../opencl')
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
+    cmdeq = ['gmx', 'grompp', '-f', '../mdps/equpmd.mdp', '-c', '../NPT/equnpt.gro', '-r', '../NPT/equnpt.gro', '-p', '../topol.top', '-t', '../NPT/equnpt.cpt', '-o', 'equpmd.tpr', '-maxwarn', str(maxwarn)]
     try:
-        subprocess.run('gmx grompp -f ../mdps/equpmd.mdp -c ../NPT/equnpt.gro -r ../NPT/equnpt.gro -p ../topol.top -t ../NPT/equnpt.cpt -o equpmd.tpr -maxwarn ' + str(maxwarn), shell=True)
-    except subprocess.CalledProcessError as e:
-        print(e)
-        print("Something went wrong with above error. Trying again...")
-        Err4a = os.system('gmx grompp -f ../mdps/equpmd.mdp -c ../NPT/equnpt.gro -r ../NPT/equnpt.gro -p ../topol.top -t ../NPT/equnpt.cpt -o equpmd.tpr -maxwarn ' + str(maxwarn))
-        if not Err4a == 0:
-            print("Generating needed files for EQ Production MD failed. Please check error message")
-
-    try:
-        subprocess.run('gmx mdrun -deffnm equpmd', shell=True)
-    except subprocess.CalledProcessError as e:
-        Err4b = os.system('gmx mdrun -deffnm equpmd')
-        if not Err4b == 0:
-            printWarning("Something was not right")
+        subprocess.run(cmdeq, stderr=subprocess.STDOUT, stdout=feq, check=True, text=True)
+        subprocess.run(['gmx', 'mdrun', '-deffnm', 'equpmd'], stderr=subprocess.STDOUT, stdout=feq, check=True, text=True)
+    except subprocess.SubprocessError as e:
+        printWarning("Something was not right. Checking...")
 
     if not ('equpmd.tpr' in os.listdir() or 'equpmd.gro' in os.listdir()):
         printWarning("There were errors during Equilibration Production MD Phase")
-        printNote("It is advisable to abort the processs, check your files and errors and rerun")
-        response = tinput("To abort type YES/y. Otherwise process will continue anyway ", 10, "y")
+        printNote("It is advisable to abort, and check eqerror.txt file for details")
+        response = tinput("To abort type YES/y. Otherwise press ENTER to continue anyway ", 10, "y")
         if response.lower() == "yes" or response.lower() == "y":
+            feq.close()
             raise Exception("Process Aborted. Make necessary corrections and restart")
     else:
         printNote("Equilibration Production MD Successfully Completed")
+        feq.close()
 
     os.chdir('../')
-    time.sleep(10)
+    time.sleep(5)
 
     #################
     # PRODUCTION MD #
     #################
-    print("Starting Production MD simulation...")
+    print("Executing: Production MD simulation...")
 
     try:
         os.mkdir("PMD")
@@ -428,33 +369,26 @@ def nptSCmds():
         os.mkdir("PMD")
 
     os.chdir("PMD")
+    fpmd = open("pmderror.txt", "a")
     if opencl_activate > 0:
         oclfiles = os.listdir('../../opencl')
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
-    try:
-        subprocess.run('gmx grompp -f ../mdps/pmds.mdp -c ../EMD/equpmd.gro -r ../EMD/equpmd.gro -p ../topol.top -t ../EMD/equpmd.cpt -o pmds.tpr -maxwarn ' + str(maxwarn), shell=True)
-    except subprocess.CalledProcessError as e:
-        print(e)
-        print("Something went wrong with above error. Trying again...")
-        Err5a = os.system('gmx grompp -f ../mdps/pmds.mdp -c ../EMD/equpmd.gro -r ../EMD/equpmd.gro -p ../topol.top -t ../EMD/equpmd.cpt -o pmds.tpr -maxwarn ' + str(maxwarn))
-        if not Err4a == 0:
-            print("Generating needed files for Production MD failed. Please check error message")
+    cmdpmd = ['gmx', 'grompp', '-f', '../mdps/pmds.mdp', '-c', '../EMD/equpmd.gro', '-r', '../EMD/equpmd.gro', '-p', '../topol.top', '-t', '../EMD/equpmd.cpt', '-o', 'pmds.tpr', '-maxwarn', str(maxwarn)]
 
     try:
-        subprocess.run('gmx mdrun -deffnm pmds', shell=True)
-    except subprocess.CalledProcessError as e:
-        Err5b = os.system('gmx mdrun -deffnm pmds')
-        if not Err5b == 0:
-            printWarning("Something was not right")
+        subprocess.run(cmdpmd, stderr=subprocess.STDOUT, stdout=fpmd, check=True, text=True)
+        subprocess.run(['gmx', 'mdrun', '-deffnm', 'pmds'], stderr=subprocess.STDOUT, stdout=fpmd, check=True, text=True)
+    except subprocess.SubprocessError as e:
+        printWarning("Something was not right. Checking...")
 
     if not ('pmds.tpr' in os.listdir() or 'pmds.gro' in os.listdir()):
-        printWarning("There were errors during Production MD Phase")
-        printNote("Please check your files and errors and be sure all is in order. Otherwise rerun")
+        printWarning("There were errors during Production MD Phase. Check pmderror.txt file for details")
     else:
         printNote("Production MD Successfully Completed")
 
+    fpmd.close()
     os.chdir('../')
     time.sleep(5)
 
@@ -482,7 +416,7 @@ def nptSCmds():
 
         os.chdir('../../')
         try:
-            shutil.rmtree(opencldir)
+            shutil.rmtree("opencl")
         except:
             pass
 
@@ -491,7 +425,7 @@ def nptSCmds():
     else:
         os.chdir('../../')
 
-    time.sleep(10)
+    time.sleep(5)
 
     # End
     printNote("Ending. Continuation MDS Job Completed Successfully")
@@ -515,7 +449,7 @@ def emdSCmds():
     maxwarn = 0
     print("The default value for -maxwarn is 0. You may wish to increase this as needed")
     print("To change this value, type YES/y. Otherwise, press ENTER to continue with the default")
-    response = tinput("Response: ", 10, "n")
+    response = tinput("Response: ", 20, "n")
     if response.lower() == "yes" or response.lower() == "y":
         while True:
             maxwarn = input("Change maxwarn to: ")
@@ -531,7 +465,7 @@ def emdSCmds():
     ####################
     # EQ PRODUCTION MD #
     ####################
-    print("Starting Equilibration Production MD simulation...")
+    print("Executing: Equilibration Production MD simulation...")
 
     try:
         os.mkdir("EMD")
@@ -540,43 +474,37 @@ def emdSCmds():
         os.mkdir("EMD")
 
     os.chdir("EMD")
+    feq = open("eqerror.txt", "a")
     if opencl_activate > 0:
         oclfiles = os.listdir('../../opencl')
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
+    cmdeq = ['gmx', 'grompp', '-f', '../mdps/equpmd.mdp', '-c', '../NPT/equnpt.gro', '-r', '../NPT/equnpt.gro', '-p', '../topol.top', '-t', '../NPT/equnpt.cpt', '-o', 'equpmd.tpr', '-maxwarn', str(maxwarn)]
     try:
-        subprocess.run('gmx grompp -f ../mdps/equpmd.mdp -c ../NPT/equnpt.gro -r ../NPT/equnpt.gro -p ../topol.top -t ../NPT/equnpt.cpt -o equpmd.tpr -maxwarn ' + str(maxwarn), shell=True)
-    except subprocess.CalledProcessError as e:
-        print(e)
-        print("Something went wrong with above error. Trying again...")
-        Err4a = os.system('gmx grompp -f ../mdps/equpmd.mdp -c ../NPT/equnpt.gro -r ../NPT/equnpt.gro -p ../topol.top -t ../NPT/equnpt.cpt -o equpmd.tpr -maxwarn ' + str(maxwarn))
-        if not Err4a == 0:
-            print("Generating needed files for EQ Production MD failed. Please check error message")
-
-    try:
-        subprocess.run('gmx mdrun -deffnm equpmd', shell=True)
-    except subprocess.CalledProcessError as e:
-        Err4b = os.system('gmx mdrun -deffnm equpmd')
-        if not Err4b == 0:
-            printWarning("Something was not right")
+        subprocess.run(cmdeq, stderr=subprocess.STDOUT, stdout=feq, check=True, text=True)
+        subprocess.run(['gmx', 'mdrun', '-deffnm', 'equpmd'], stderr=subprocess.STDOUT, stdout=feq, check=True, text=True)
+    except subprocess.SubprocessError as e:
+        printWarning("Something was not right. Checking...")
 
     if not ('equpmd.tpr' in os.listdir() or 'equpmd.gro' in os.listdir()):
         printWarning("There were errors during Equilibration Production MD Phase")
-        printNote("It is advisable to abort the processs, check your files and errors and rerun")
-        response = tinput("To abort type YES/y. Otherwise process will continue anyway ", 10, "y")
+        printNote("It is advisable to abort, and check eqerror.txt file for details")
+        response = tinput("To abort type YES/y. Otherwise press ENTER to continue anyway ", 10, "y")
         if response.lower() == "yes" or response.lower() == "y":
+            feq.close()
             raise Exception("Process Aborted. Make necessary corrections and restart")
     else:
         printNote("Equilibration Production MD Successfully Completed")
+        feq.close()
 
     os.chdir('../')
-    time.sleep(10)
+    time.sleep(5)
 
     #################
     # PRODUCTION MD #
     #################
-    print("Starting Production MD simulation...")
+    print("Executing: Production MD simulation...")
 
     try:
         os.mkdir("PMD")
@@ -585,33 +513,26 @@ def emdSCmds():
         os.mkdir("PMD")
 
     os.chdir("PMD")
+    fpmd = open("pmderror.txt", "a")
     if opencl_activate > 0:
         oclfiles = os.listdir('../../opencl')
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
-    try:
-        subprocess.run('gmx grompp -f ../mdps/pmds.mdp -c ../EMD/equpmd.gro -r ../EMD/equpmd.gro -p ../topol.top -t ../EMD/equpmd.cpt -o pmds.tpr -maxwarn ' + str(maxwarn), shell=True)
-    except subprocess.CalledProcessError as e:
-        print(e)
-        print("Something went wrong with above error. Trying again...")
-        Err5a = os.system('gmx grompp -f ../mdps/pmds.mdp -c ../EMD/equpmd.gro -r ../EMD/equpmd.gro -p ../topol.top -t ../EMD/equpmd.cpt -o pmds.tpr -maxwarn ' + str(maxwarn))
-        if not Err4a == 0:
-            print("Generating needed files for Production MD failed. Please check error message")
+    cmdpmd = ['gmx', 'grompp', '-f', '../mdps/pmds.mdp', '-c', '../EMD/equpmd.gro', '-r', '../EMD/equpmd.gro', '-p', '../topol.top', '-t', '../EMD/equpmd.cpt', '-o', 'pmds.tpr', '-maxwarn', str(maxwarn)]
 
     try:
-        subprocess.run('gmx mdrun -deffnm pmds', shell=True)
-    except subprocess.CalledProcessError as e:
-        Err5b = os.system('gmx mdrun -deffnm pmds')
-        if not Err5b == 0:
-            printWarning("Something was not right")
+        subprocess.run(cmdpmd, stderr=subprocess.STDOUT, stdout=fpmd, check=True, text=True)
+        subprocess.run(['gmx', 'mdrun', '-deffnm', 'pmds'], stderr=subprocess.STDOUT, stdout=fpmd, check=True, text=True)
+    except subprocess.SubprocessError as e:
+        printWarning("Something was not right. Checking...")
 
     if not ('pmds.tpr' in os.listdir() or 'pmds.gro' in os.listdir()):
-        printWarning("There were errors during Production MD Phase")
-        printNote("Please check your files and errors and be sure all is in order. Otherwise rerun")
+        printWarning("There were errors during Production MD Phase. Check pmderror.txt file for details")
     else:
         printNote("Production MD Successfully Completed")
 
+    fpmd.close()
     os.chdir('../')
     time.sleep(5)
 
@@ -639,7 +560,7 @@ def emdSCmds():
 
         os.chdir('../../')
         try:
-            shutil.rmtree(opencldir)
+            shutil.rmtree("opencl")
         except:
             pass
 
@@ -648,7 +569,7 @@ def emdSCmds():
     else:
         os.chdir('../../')
 
-    time.sleep(10)
+    time.sleep(5)
 
     # End
     printNote("Ending. Continuation MDS Job Completed Successfully")
@@ -672,7 +593,7 @@ def pmdSCmds():
     maxwarn = 0
     print("The default value for -maxwarn is 0. You may wish to increase this as needed")
     print("To change this value, type YES/y. Otherwise, press ENTER to continue with the default")
-    response = tinput("Response: ", 10, "n")
+    response = tinput("Response: ", 20, "n")
     if response.lower() == "yes" or response.lower() == "y":
         while True:
             maxwarn = input("Change maxwarn to: ")
@@ -680,7 +601,7 @@ def pmdSCmds():
                 print("You must supply digit value for maxwarn to continue")
                 continue
             else:
-                print("maxwarn has been changed to: ", maxwarn)
+                print(f"maxwarn has been changed to: {maxwarn}")
                 break
 
     time.sleep(5)
@@ -688,7 +609,7 @@ def pmdSCmds():
     #################
     # PRODUCTION MD #
     #################
-    print("Starting Production MD simulation...")
+    print("Executing: Production MD simulation...")
 
     try:
         os.mkdir("PMD")
@@ -697,33 +618,26 @@ def pmdSCmds():
         os.mkdir("PMD")
 
     os.chdir("PMD")
+    fpmd = open("pmderror.txt", "a")
     if opencl_activate > 0:
         oclfiles = os.listdir('../../opencl')
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
-    try:
-        subprocess.run('gmx grompp -f ../mdps/pmds.mdp -c ../EMD/equpmd.gro -r ../EMD/equpmd.gro -p ../topol.top -t ../EMD/equpmd.cpt -o pmds.tpr -maxwarn ' + str(maxwarn), shell=True)
-    except subprocess.CalledProcessError as e:
-        print(e)
-        print("Something went wrong with above error. Trying again...")
-        Err5a = os.system('gmx grompp -f ../mdps/pmds.mdp -c ../EMD/equpmd.gro -r ../EMD/equpmd.gro -p ../topol.top -t ../EMD/equpmd.cpt -o pmds.tpr -maxwarn ' + str(maxwarn))
-        if not Err4a == 0:
-            print("Generating needed files for Production MD failed. Please check error message")
+    cmdpmd = ['gmx', 'grompp', '-f', '../mdps/pmds.mdp', '-c', '../EMD/equpmd.gro', '-r', '../EMD/equpmd.gro', '-p', '../topol.top', '-t', '../EMD/equpmd.cpt', '-o', 'pmds.tpr', '-maxwarn', str(maxwarn)]
 
     try:
-        subprocess.run('gmx mdrun -deffnm pmds', shell=True)
-    except subprocess.CalledProcessError as e:
-        Err5b = os.system('gmx mdrun -deffnm pmds')
-        if not Err5b == 0:
-            printWarning("Something was not right")
+        subprocess.run(cmdpmd, stderr=subprocess.STDOUT, stdout=fpmd, check=True, text=True)
+        subprocess.run(['gmx', 'mdrun', '-deffnm', 'pmds'], stderr=subprocess.STDOUT, stdout=fpmd, check=True, text=True)
+    except subprocess.SubprocessError as e:
+        printWarning("Something was not right. Checking...")
 
     if not ('pmds.tpr' in os.listdir() or 'pmds.gro' in os.listdir()):
-        printWarning("There were errors during Production MD Phase")
-        printNote("Please check your files and errors and be sure all is in order. Otherwise rerun")
+        printWarning("There were errors during Production MD Phase. Check pmderror.txt file for details")
     else:
         printNote("Production MD Successfully Completed")
 
+    fpmd.close()
     os.chdir('../')
     time.sleep(5)
 
@@ -751,7 +665,7 @@ def pmdSCmds():
 
         os.chdir('../../')
         try:
-            shutil.rmtree(opencldir)
+            shutil.rmtree("opencl")
         except:
             pass
 
@@ -760,7 +674,7 @@ def pmdSCmds():
     else:
         os.chdir('../../')
 
-    time.sleep(10)
+    time.sleep(5)
 
     # End
     printNote("Ending. Continuation MDS Job Completed Successfully")

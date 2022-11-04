@@ -1,24 +1,9 @@
 #!/usr/bin/env python
 
 """
-    Requirements: Python 3 or higher
-                  Antechamber and related AmberTools
-                  OpenBabel (strongly recommended for use with acpype)
-				  acpype (latest version recommended with all its requirements)
-				  Gromacs (Compulsory)
-                  flask (Compulsory)
-                  flaskwebgui (recommended)
-                  pyfladesk (recommended)
-
     This code is released under GNU General Public License V3.
 
           <<<  NO WARRANTY AT ALL!!!  >>>
-
-    It was inspired by:
-
-    - CS50 online training for which this code serves as part of the final project
-
-	- PLEASE Read the README.md file and also follow instructions on the GUI and/or Terminal
 
 	Daniyan, Oluwatoyin Michael, B.Pharm. M.Sc. (Pharmacology) and Ph.D. (Science) Biochemistry
     Department of Pharmacology, Faculty of Pharmacy
@@ -29,18 +14,15 @@
 """
 import sys
 
-if sys.version_info[0] < 3:
-	raise Exception("Python 3 or a more recent version is required.")
+if sys.version_info < (3, 5):
+	raise Exception("Python 3.5 or a more recent version is required.")
 
 import os
 import glob
 import subprocess
 import time
-from pathlib import Path
 import shutil
-import random
-import string
-import math
+from pathlib import Path
 from colored import fore, back, style
 from tkinter import Tk, filedialog
 from inputimeout import inputimeout, TimeoutOccurred
@@ -103,30 +85,41 @@ def select_folder(title):
 
 def gmxtop():
 	""" Scan for and obtain the list of available forcefields based on install version of gromacs """
-
 	# Get the absolute path to the forcefield directory and get the awailabe ff
 	gmxtopdir = " "
 	gmxtopff = []
-	title = "Select Gromacs tops Directory"
-	# watermodel = ['spc', 'spce', 'tip3p', 'tip4p', 'tip5p', 'tips3p']
 
-	try:
-		gmxtopdir = os.path.join(os.environ.get('GMXDATA'), 'top')
-	except:
-		print("We are unable to autodetect your forcefield directory")
-		print("Please specify the directory using the open folder explorer")
-		print("Usually /path-to-gromacs/share/gromacs/top")
-		while True:
-			gmxtopdir = select_folder(title)
-			if not os.path.isdir(gmxtopdir):
-				print("Directory you specified does not exist. Please check and try again")
+	def topdir():
+		title = "Select Gromacs tops Directory"
+		try:
+			gmxTDir = os.path.join(os.environ.get('GMXDATA'), 'top')
+		except:
+			print("Autodetection of gromacs forcefield directory failed")
+			print("Use the folder explorer to searh. Usually /path-to-gromacs/share/gromacs/top")
+			while True:
+				gmxTDir = select_folder(title)
+				if not os.path.isdir(gmxTDir):
+					print("Directory you specified does not exist. Please check and try again")
+				else:
+					break
+		return gmxTDir
+
+	while True:
+		gmxtopdir = topdir()
+		listtopdir = os.listdir(gmxtopdir)
+		for fdir in listtopdir:
+			if Path(fdir).suffix == ".ff":
+				gmxtopff.append(Path(fdir).stem)
+		
+		if not len(gmxtopff) > 0:
+			print("Selected directory is not a valid gromacs toplogy directory or it's empty")
+			response = input("To continue anyway, type YES/y. Press ENTER to search again: ")
+			if not (response.lower() == "yes" or response.lower() == "y"):
+				continue
 			else:
 				break
-
-	listtopdir = os.listdir(gmxtopdir)
-	for fdir in listtopdir:
-		if Path(fdir).suffix == ".ff":
-			gmxtopff.append(Path(fdir).stem)
+		else:
+			break
 
 	return gmxtopff, gmxtopdir
 
@@ -141,101 +134,101 @@ def ligtopol(ligand, name):
 	liginp = name + ".inpcrd"
 	ligfrc = name + ".frcmod"
 	ligpdb = name + "new" + ".pdb"
+	ligfi = "pdb"
+	flgro = "f" + liggro
+	fltop = "f" + ligtop
+
+	postCheck = 0
+	f = open('ligerror.txt', 'a')
 
     # Run Antechamber with gaff2 and parmchk2 to generate ligand(s) parameters
-	try:
-		subprocess.run('antechamber -i ' + ligand + ' -fi pdb -o LIG.mol2 -fo mol2 -c bcc -ek scfconv=1.d-8 -at gaff2 -pf y', shell=True, check=True)
-		subprocess.run('parmchk2 -i LIG.mol2 -f mol2 -o LIG.frcmod', shell=True, check=True)
-	except subprocess.CalledProcessError as e:
-		print(e)
-		printWarning("Something went wrong with the above error, Trying again ....")			
-		time.sleep(5)
-		LEr1a = os.system('antechamber -i ' + ligand + ' -fi pdb -o LIG.mol2 -fo mol2 -c bcc -ek scfconv=1.d-8 -at gaff2 -pf y')
-		LEr1b = os.system('parmchk2 -i LIG.mol2 -f mol2 -o LIG.frcmod')
-		if not (LEr1a == 0 and LEr1b == 0):
-			print(ligand, "preparation error persist. The process may fail")
+	print("Running antechamber ...")
+	if Path(ligand).suffix == ".mol2":
+		ligfi = "mol2"
 
-	time.sleep(5)
+	lcmd1 = ['antechamber', '-i', ligand, '-fi', ligfi, '-o', 'LIG.mol2', '-fo', 'mol2', '-c', 'bcc', '-ek', 'scfconv=1.d-8', '-at', 'gaff2', '-pf', 'y']
+	lcmd2 = ['parmchk2', '-i', 'LIG.mol2', '-f', 'mol2', '-o', 'LIG.frcmod']
+
+	try:
+		subprocess.run(lcmd1, check=True, stderr=subprocess.STDOUT, stdout=f, text=True)
+		subprocess.run(lcmd2, check=True, stderr=subprocess.STDOUT, stdout=f, text=True)
+	except subprocess.SubprocessError as e:
+		print(e)
+		printWarning("Something went wrong with the above error")			
+		print(f"{ligand} preparation process may fail")
+		postCheck += 1
 
     # Run Amber tleap with appropriate tleap source file
+	print("Running tleap ...")
 	try:
-		subprocess.run('tleap -s -f ligtoptleap.in', shell=True, check=True)
-		subprocess.run('mv LIGx.* LIG.prmtop', shell=True, check=True)
-		subprocess.run('mv LIGy.* LIG.inpcrd', shell=True, check=True)
-		subprocess.run('mv LIGz_new.* LIGnew.pdb', shell=True, check=True)
-	except subprocess.CalledProcessError as e:
+		subprocess.run(['tleap', '-s', '-f', 'ligtoptleap.in'], check=True, stderr=subprocess.STDOUT, stdout=f, text=True)
+	except subprocess.SubprocessError as e:
 		print(e)
-		printWarning("Something went wrong with the above error message, Trying again ....")			
-		time.sleep(5)
-		LEr2a = os.system('tleap -s -f ligtoptleap.in')
-		LEr2b = os.system('mv LIGx.* LIG.prmtop')
-		LEr2c = os.system('mv LIGy.* LIG.inpcrd')
-		LEr2d = os.system('mv LIGz_new.* LIGnew.pdb')
-		if not (LEr2a == 0 and LEr2b == 0 and LEr2c == 0 and LEr2d == 0):
-			print(ligand, "preparation with tleap failed. The process may most likely fail")
-			flgro = "f" + liggro
-			fltop = "f" + ligtop
-			return flgro, fltop
+		printWarning(f"Something went wrong with the above error message. {ligand} preparation process may most likely fail")
+		postCheck += 1	
 
-	time.sleep(5)
-
-    # Run acpype to convert antechamber/tleap files to Gromacs
+	print("Renaming generated files ...")
 	try:
-		subprocess.run('acpype -p LIG.prmtop -x LIG.inpcrd -a amber2', shell=True, check=True)
-	except subprocess.CalledProcessError as e:
+		shutil.move(glob.glob("LIGx.*")[0], "LIG.prmtop")
+		shutil.move(glob.glob("LIGy.*")[0], "LIG.inpcrd")
+		shutil.move(glob.glob("LIGz_new.*")[0], "LIGnew.pdb")
+	except:
+		printWarning("Renaming of some needed files failed. This may affect your work")
+		postCheck += 1
+
+    # Run acpype to convert antechamber/tleap files to Gromacs or directly generate topology file
+	lcmd3 = []
+	if not postCheck > 0:
+		print("Running acpype ...")
+		lcmd3 = ['acpype', '-p', 'LIG.prmtop', '-x', 'LIG.inpcrd']
+	else:
+		print("Attempting to use acpype for topology generation ...")
+		lcmd3 = ['acpype', '-i', ligand, '-b', name]
+		
+	try:
+		subprocess.run(lcmd3, check=True, stderr=subprocess.STDOUT, stdout=f, text=True)
+	except subprocess.SubprocessError as e:
 		print(e)
-		printWarning("Something went wrong with above error, Trying again ....")			
-		time.sleep(5)
-		LEr3a = os.system('acpype.py -p LIG.prmtop -x LIG.inpcrd -a amber2')
-		if not LEr3a == 0:
-			print(ligand, "preparation with acpype failed. Please check, make corrections and rerun. The process will most likely fail")
-			flgro = "f" + liggro
-			fltop = "f" + ligtop
-			return flgro, fltop
+		printWarning(f"Something went wrong with above error, {ligand} preparation process will most likely fail")
+		print("Please check the content of ligerror.txt file")
+		f.close()
+		return flgro, fltop
+
+	for folder in os.listdir():
+		if os.path.isdir(folder) and not folder == "usertops":
+			for facpype in os.listdir(folder):
+				if Path(facpype).suffix == ".itp" or Path(facpype).suffix == ".top" or Path(facpype).suffix == ".gro":
+					shutil.copy(os.path.join(Path.cwd(), folder, facpype), './')
+
+			shutil.rmtree(folder)
 
 	try:
-		subprocess.run('mv *_GMX.gro ' + liggro, shell=True, check=True)
-		subprocess.run('mv *_GMX.top ' + ligtop, shell=True, check=True)
-		subprocess.run('mv LIG.mol2 ' + ligmol, shell=True, check=True)
-		subprocess.run('mv LIG.prmtop ' + ligprm, shell=True, check=True)
-		subprocess.run('mv LIG.inpcrd ' + liginp, shell=True, check=True)
-		subprocess.run('mv LIG.frcmod ' + ligfrc, shell=True, check=True)
-		subprocess.run('mv LIGnew.pdb ' + ligpdb, shell=True, check=True)
-	except subprocess.CalledProcessError as e:
-		print(e)
-		printWarning("Something went wrong with renaming one or more needed files, Trying again ....")			
-		time.sleep(5)
-		LEr4a = os.system('mv *_GMX.gro ' + liggro)
-		LEr4b = os.system('mv *_GMX.top ' + ligtop)
-		LEr4c = os.system('mv LIG.mol2 ' + ligmol)
-		LEr4d = os.system('mv LIG.prmtop ' + ligprm)
-		LEr4e = os.system('mv LIG.inpcrd ' + liginp)
-		LEr4f = os.system('mv LIG.frcmod ' + ligfrc)
-		LEr4g = os.system('mv LIGnew.pdb ' + ligpdb)
-		if not (LEr4a == 0 and LEr4b == 0 and LEr4c == 0 and LEr4d == 0 and LEr4e == 0 and LEr4f == 0 and LEr4g == 0):
-			printNote("renaming of some needed files failed. This may affect your work")
-			flgro = "f" + liggro
-			fltop = "f" + ligtop
-			return flgro, fltop
+		shutil.move(glob.glob("*_GMX.gro")[0], liggro)
+		shutil.move(glob.glob("*_GMX.top")[0], ligtop)
+		shutil.move("LIG.mol2", ligmol)
+		shutil.move("LIG.prmtop", ligprm)
+		shutil.move("LIG.inpcrd", liginp)
+		shutil.move("LIG.frcmod", ligfrc)
+		shutil.move("LIGnew.pdb", ligpdb)
+	except:
+		printWarning("Renaming of some needed files failed. This may affect your work")
 
+	f.close()
 	return liggro, ligtop
 
 
 def receptopol(receptor, name, selff, selwater):
 	""" Generating receptor topology and gro files """
-	recpdb = name + ".pdb"
-	rectop = name + ".top"
+	recpdb = name + '.pdb'
+	rectop = name + '.top'
+	rcmd = ['gmx', 'pdb2gmx', '-f', receptor, '-p', rectop, '-o', recpdb, '-ff', selff, '-water', selwater, '-ignh']
 
 	try:
-		subprocess.run('gmx pdb2gmx -f ' + receptor + ' -p ' + rectop + ' -o ' + recpdb  + ' -ff ' + selff + ' -water ' + selwater + ' -ignh', shell=True, check=True)
-	except subprocess.CalledProcessError as e:
+		subprocess.run(rcmd, check=True, stderr=subprocess.STDOUT, text=True)
+	except subprocess.SubprocessError as e:
 		print(e)
-		printWarning("Something went wrong. Check above error message. Trying again ....")			
-		time.sleep(5)
-		REr1a = os.system('gmx pdb2gmx -f ' + receptor + ' -p ' + rectop + ' -o ' + recpdb + ' -ff ' + selff + ' -water ' + selwater + ' -ignh')
-		if not REr1a == 0:
-			print(receptor, "preparation failed. The process can't continue. Make corrections and rerun")
-			raise Exception("Process Aborted. Make necessary corrections and restart")
+		print(receptor, "preparation failed with above error. The process can't continue. Make corrections and rerun")
+		raise Exception("Process Aborted. Make necessary corrections and restart")
 
 	return rectop, recpdb, 'posre.itp'
 
@@ -306,68 +299,86 @@ def indexoflines(LFtop):
 def complexgen(tleapfile):
 	""" Generating needed complex structure(s) using amber tleap """
     # Run Amber tleap with appropriate tleap source file
+	print("Running amber tleap ...")
+	f = open('cplxerror.txt', 'a')
 	try:
-		subprocess.run('tleap -s -f ' + tleapfile, shell=True, check=True)
-		subprocess.run('mv complex1* complex.inpcrd', shell=True, check=True)
-	except subprocess.CalledProcessError as e:
+		subprocess.run(['tleap', '-s', '-f', tleapfile], check=True, stderr=subprocess.STDOUT, stdout=f, text=True)
+	except subprocess.SubprocessError as e:
 		print(e)
-		printWarning("Something went wrong. Check above error message. Trying again ....")			
-		time.sleep(5)
-		CEr1a = os.system('tleap -s -f ' + tleapfile)
-		CEr1b = os.system('mv complex1* complex.inpcrd')
-		if not (CEr1a == 0 and CEr1b == 0):
-			printWarning("Errors detected and complex generation process failed. Please check and make corrections")
-			printNote("However, attempt will be made to use alternative approach")
-			return 'fComplex.gro', 'fComplex.top'
+		printWarning("The above errors detected and complex generation process failed. Please check 'cplxerror.txt' file and make corrections")
+		printNote("However, attempt will be made to use alternative approach")
+		f.close()
+		return 'fComplex.gro', 'fComplex.top'
 
-	time.sleep(5)
+	try:
+		shutil.move(glob.glob("complex1*")[0], "complex.inpcrd")
+	except:
+		pass
 
 	# Convert Amber tleap generated prmtop and inpcrd files to Gromacs compatible format using acpype
+	print("Running acpype ...")
 	try:
-		subprocess.run('acpype -p complex.prmtop -x complex.inpcrd -a amber2', shell=True, check=True)
-	except subprocess.CalledProcessError as e:
+		subprocess.run(['acpype', '-p', 'complex.prmtop', '-x', 'complex.inpcrd'], check=True, stderr=subprocess.STDOUT, stdout=f, text=True)
+	except subprocess.SubprocessError as e:
 		print(e)
-		printWarning("Something went wrong, Trying again ....")			
-		time.sleep(5)
-		CEr1c = os.system('acpype -p complex.prmtop -x complex.inpcrd -a amber2')
-		if not CEr1c == 0:
-			printWarning("Preparing Complex or protein structure with acpype failed")
-			printNote("It is advisable to check, make corrections where necessary, and rerun")
-			printNote("However, attempt will be made to use alternative approach")
-			return 'fcomplex_GMX.gro', 'fcomplex_GMX.top'
+		printWarning("Preparing Complex or protein structure failed with above error")
+		printNote("It is advisable to check 'cplxerror.txt' file, make corrections where necessary, and rerun")
+		printNote("However, attempt will be made to use alternative approach")
+		f.close()
+		return 'fcomplex.gro', 'fcomplex.top'
+
+	for folder1 in os.listdir():
+		if os.path.isdir(folder1) and not (folder1 == "ligfrcmod" or folder1 == "ligmol" or folder1 == "ligpdb"):
+			for fcomp in os.listdir(folder1):
+				if Path(fcomp).suffix == ".itp" or Path(fcomp).suffix == ".top" or Path(fcomp).suffix == ".gro":
+					shutil.copy(os.path.join(Path.cwd(), folder1, fcomp), './')
+
+			shutil.rmtree(folder1)
 
 	try:
-		os.rename('complex_GMX.gro', 'Complex.gro')
-		os.rename('complex_GMX.top', 'Complex.top')
+		shutil.move('complex_GMX.gro', 'Complex.gro')
+		shutil.move('complex_GMX.top', 'Complex.top')
 	except Exception as e:
 		print("One or more files could not be found. Renaming failed with error", e)
+		printNote("Please check 'cplxerror.txt' file for details")
+		f.close()
 		return 'complex_GMX.gro', 'complex_GMX.top'
 
 	checkfile = os.listdir()
 	if ('tlpSolvated.prmtop' in checkfile and 'tlpSolvated.inpcrd' in checkfile):
+		print("Running acpype conversion for amber generated solvated complex ...")
 		try:
-			subprocess.run('acpype -p tlpSolvated.prmtop -x tlpSolvated.inpcrd -a amber2', shell=True, check=True)
-		except subprocess.CalledProcessError as e:
+			subprocess.run(['acpype', '-p', 'tlpSolvated.prmtop', '-x', 'tlpSolvated.inpcrd'], check=True, stderr=subprocess.STDOUT, stdout=f, text=True)
+		except subprocess.SubprocessError as e:
 			print(e)
-			printWarning("Something went wrong, Trying again ....")			
-			time.sleep(5)
-			CEr1d = os.system('acpype -p tlpSolvated.prmtop -x tlpSolvated.inpcrd -a amber2')
-			if not CEr1d == 0:
-				printWarning("Preparing solvated structure with acpype failed")
-				printNote("This may not affect your setup. If you need it, do it manually")
-				return 'Complex.gro', 'Complex.top'
+			printWarning("Preparing solvated structure failed with above error. Check 'cplxerror.txt' for details")
+			printNote("This may not affect your setup. If you need it, do it manually")
+			f.close()
+			return 'Complex.gro', 'Complex.top'
+
+		for folder2 in os.listdir():
+			if os.path.isdir(folder2) and not (folder2 == "ligfrcmod" or folder2 == "ligmol" or folder2 == "ligpdb"):
+				for fambsol in os.listdir(folder2):
+					if Path(fambsol).suffix == ".itp" or Path(fambsol).suffix == ".top" or Path(fambsol).suffix == ".gro":
+						shutil.copy(os.path.join(Path.cwd(), folder2, fambsol), './')
+
+				shutil.rmtree(folder2)
 
 		try:
-			os.rename('tlpSolvated_GMX.gro', 'tlpSolvated.gro')
-			os.rename('tlpSolvated_GMX.top', 'tlpSolvated.top')
+			shutil.move('tlpSolvated_GMX.gro', 'tlpSolvated.gro')
+			shutil.move('tlpSolvated_GMX.top', 'tlpSolvated.top')
 		except Exception as e:
 			print("One or more files could not be found. Renaming failed with error", e)
+			print("You may want to check 'cplxerror.txt' file for details of the error")
 
+	f.close()
 	return 'Complex.gro', 'Complex.top'
 
 
 def pdbcatogro():
 	""" Alternative generation of needed complex structure(s) using direct concatenation of relevant files """
+	printNote("Exploring alternative approach to complex generation")
+	print("Generating backup Protein - Ligand Complex ...")
 
 	# Open a new catComplex.pdb file and write receptor pdb file into it
 	complex = open("conComplex.pdb", "+a")
@@ -399,12 +410,16 @@ def pdbcatogro():
 	complex.close()
 
 	# Convert the pdb to gro using editconf
-	PEr1a = os.system('gmx editconf -f conComplex.pdb -o conComplex.gro')
-	if not PEr1a == 0:
-		printNote("pdb conversion to gro to generated alternative complex/protein structure failed")
-		printNote("This may not affect your setup")
+	f = open('cplxBKerror.txt', 'a')
+	try:
+		subprocess.run(['gmx', 'editconf', '-f', 'conComplex.pdb', '-o', 'conComplex.gro'], check=True, stderr=subprocess.STDOUT, stdout=f, text=True)
+	except subprocess.SubprocessError as e:
+		printNote("Generating backup structure failed. Check cplxBKerror.txt file for details")
+		f.close()
 		return 'fconComplex.gro', 'fconComplex.pdb'
 	
+	f.close()
+	print("Backup complex was successfully generated")
 	return 'conComplex.gro', 'conComplex.pdb'
 
 
@@ -452,7 +467,6 @@ def defaults1():
 def defaults2(topol):
 	""" If needed, some default values will be extracted from topol file to update defaults list """
 	# Set needed variables
-	select_topol = topol
 	select_water = "none"
 
 	# Check topol file to identify the water model used
@@ -481,12 +495,13 @@ def solvation(grocomplex, topol, selwater, selbt, seld):
 	""" Solvate the generated complex in preparation for MDS """
 	# Create needed backup for error checkup when necessary
 	for fchk in os.listdir():
-		if fchk == 'check' or fchk == 'check1' or fchk == 'check2':
+		if fchk == 'checklog.txt':
 			bk = '#'
 			while True:
 				newchk = bk + fchk + bk
 				if newchk in os.listdir():
 					bk = bk + '#'
+					continue
 				else:
 					os.rename(fchk, newchk)
 					break
@@ -496,8 +511,9 @@ def solvation(grocomplex, topol, selwater, selbt, seld):
 	select_cs = "spc216"
 	Twater = selwater
 
-	change_d = seld
+	change_d = str(seld)
 	change_bt = selbt
+	f = open('checklog.txt', 'a')
 
 	if not Twater == "none":
 		if Twater == "tip4p" or Twater == "tip4pew":
@@ -507,54 +523,47 @@ def solvation(grocomplex, topol, selwater, selbt, seld):
 		else:
 			select_cs = "spc216"
 
-		printNote("If successful, It's important to view and check the appropriateness of the generated fsolvated.gro")
+		printNote("If successful, the appropriateness of the generated fsolvated.gro should be checked")
 		time.sleep(5)
 
 		# Now set the box with supplied values -d and -bt and solvate
+		print("Setting the box with the default parameters ...")
+		solcmd1 = ['gmx', 'editconf', '-f', grocomplex, '-o', 'complex_new', '-d', change_d, '-bt', change_bt]
 		try:
-			subprocess.run('gmx editconf -f ' + grocomplex + ' -o complex_new -d ' + str(change_d) + ' -bt ' + change_bt, shell=True)
-		except subprocess.CalledProcessError as e:
-			solErr1 = os.system('gmx editconf -f ' + grocomplex + ' -o complex_new -d ' + str(change_d) + ' -bt ' + change_bt)
-			if not solErr1 == 0:
-				printWarning("gmx editconf failed. Solvation may not be successful")
+			subprocess.run(solcmd1, check=True, stderr=subprocess.STDOUT, stdout=f, text=True)
+		except subprocess.SubprocessError as e:
+			printWarning("gmx editconf failed. Solvation may not be successful")
 
 		if not 'ions.mdp' in os.listdir():
-			try:
-				subprocess.run('touch ions.mdp', shell=True)
-			except subprocess.CalledProcessError as e:
-				solErr2 = os.system('touch ions.mdp')
-				if not solErr2 == 0:
-					printWarning("Unable to generate needed file. Solvation may not be successful")
+			open('ions.mdp', 'w').close()
 
 		# Setting up solvation and generating needed files
+		print("Checking solvation with topol.top ...")
 		rq = 0
+		solcmd2 = ['gmx', 'solvate', '-cp', 'complex_new', '-cs', select_cs, '-p', select_topol, '-o', 'solvated']
+		solcmd3 = ['gmx', 'grompp', '-f', 'ions.mdp', '-p', select_topol, '-c', 'solvated.gro', '-o', 'ions.tpr', '-maxwarn', '40']
+
 		while True:
 			try:
-				subprocess.run('gmx solvate -cp complex_new -cs ' + select_cs + ' -p ' + select_topol + ' -o solvated', shell=True)
-				subprocess.run('gmx grompp -f ions.mdp -p ' + select_topol + ' -c solvated.gro -o ions.tpr -maxwarn 40 2>> check', shell=True)
-			except subprocess.CalledProcessError as e:
-				solErr3 = os.system('gmx solvate -cp complex_new -cs ' + select_cs + ' -p ' + select_topol + ' -o solvated')
-				solErr4 = os.system('gmx grompp -f ions.mdp -p ' + select_topol + ' -c solvated.gro -o ions.tpr -maxwarn 40 2>> check')
-				if not (solErr3 == 0 and solErr4 == 0):
-					printWarning("Something appears to be wrong. Checking ....")
+				subprocess.run(solcmd2, check=True, stderr=subprocess.STDOUT, stdout=f, text=True)
+				subprocess.run(solcmd3, check=True, stderr=subprocess.STDOUT, stdout=f, text=True)
+			except subprocess.SubprocessError as e:
+				printWarning("Something appears to be wrong. Checking ....")
 
 			# check to be sure required file, ions.tpr, was generated
 			if not 'ions.tpr' in os.listdir():
 				rq += 1
-				rqCheck = 'check' + str(rq)
-				try:
-					os.rename('check', rqCheck)
-				except:
-					pass
 				printWarning("Warning...")
-				print(select_topol, "failed to generate required file(s). For details, check the file named", rqCheck)
+				print(f"{select_topol} failed to generate required file(s). For details, check the file named {f}")
 
 				if rq > 1:
+					f.close()
 					return grocomplex
 
 				elif not 'tlptopol.top' in os.listdir():
 					print("tlptopol.top was not created. We can't try solvation with it")
 					time.sleep(5)
+					f.close()
 					return grocomplex
 
 				else:
@@ -565,38 +574,46 @@ def solvation(grocomplex, topol, selwater, selbt, seld):
 
 			else:
 				if select_topol == "topol.top":
-					printNote("Solvation with topol.top was successful. Congratulations!")
+					printNote("Checks Successful. Solvation can now proceed with topol.top!")
 					printNote("The alternative tlptopol.top will be included in the gmxmds folder")
 					time.sleep(5)
 					break
 
 				else:
-					printNote("It apprears all is well using tlptopol.top. Please check")
+					printNote("Checks successful. Solvation can now proceed with tlptopol.top!")
 					print("We will now backup topol.top as topol.bk and rename tlptopol.top to topol.top")
-					os.rename('topol.top', 'topol.bk')
-					os.rename('tlptopol.top', 'topol.top')
+					shutil.move('topol.top', 'topol.bk')
+					shutil.move('tlptopol.top', 'topol.top')
 					select_topol = "topol.top"
 					time.sleep(5)
 					break
 
 		# Now add ions to nutralize the solvated complex
+		print("Adding ions to neutralized the solvated complex ...")
 		try:
-			subprocess.run('printf "SOL" | gmx genion -s ions.tpr -p ' + select_topol + ' -pname NA -nname CL -neutral -conc 0.15 -o fsolvated.gro', shell=True, check = True)
-		except subprocess.CalledProcessError as e:
-			print(e)
-			printWarning("Something went wrong, Trying again ....")			
-			time.sleep(5)
-			SEr1a = os.system('printf "SOL" | gmx genion -s ions.tpr -p ' + select_topol + ' -pname NA -nname CL -neutral -conc 0.15 -o fsolvated.gro')
-			if not SEr1a == 0:
-				printWarning("Something went wrong with nutralizing solvated complex or protein. Do this manually")
+			solcmd4 = f'printf "SOL" | gmx genion -s ions.tpr -p {select_topol} -pname NA -nname CL -neutral -conc 0.15 -o fsolvated.gro'
+			subprocess.run(solcmd4, shell=True, check=True, stderr=subprocess.STDOUT, stdout=f, text=True)
+		except subprocess.SubprocessError as e:
+			print(f"Something went wrong with above error: {e}")
+			printWarning(f"Please check file {f} for details")
 
+		f.close()
 		return 'fsolvated.gro'
 
 	else:
 		printNote("No water model could be detected for this setup. Therefore, no solvation can be performed")
 		printNote("As such 'ufsolvate.gro' will be returned instead of 'fsolvated.gro' file")
-		os.system('gmx editconf -f ' + grocomplex + ' -o ufsolvate.gro')
-		return 'ufsolvate.gro'
+		solcmd5 = ['gmx', 'editconf', '-f', grocomplex, '-o', 'ufsolvate.gro']
+		try:
+			subprocess.run(solcmd5, check=True, stderr=subprocess.STDOUT, stdout=f, text=True)
+			f.close()
+			return 'ufsolvate.gro'
+		except subprocess.SubprocessError as e:
+			print(e)
+			printWarning("Something went wrong with above error. Please check")
+			f.close()
+			return grocomplex
+
 
 def insertdetails(file1, file2, identifier):
 	""" Inserting new details into any part of already created file """

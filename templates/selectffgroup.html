@@ -30,7 +30,7 @@
 	<form class="form-group" action="/selectffgroup" method="post">
 		<label for="setforcefield">Choose your preferred group of forcefield</label>
 		<select class="form-select" name="gmodsff" id="gmodsff" style="width: 50%;">
-			<option value="None">No Selection</option>
+			<option value="None">Select</option>
 			<option value="Amber">Amber</option>
 			<option value="Charmm">Charmm</option>
 			<option value="Gromos">Gromos</option>
@@ -41,7 +41,7 @@
 		{% if (N == 1 or N == 2 or N == 3) %}
 			<label for="choosetoupload">Will you like to upload Ligand(s) topology(ies)?</label>
 			<select class="form-select" name="gmodsyn" id="gmodsyn" style="width: 50%;">
-				<option value="None">No Selection</option>
+				<option value="None">Select</option>
 				<option value="YES">YES</option>
 				<option value="NO">NO</option>
 			</select>
@@ -49,7 +49,7 @@
 		{% elif N == 4 %}
 			<label for="choosetoupload">What will you like to upload?</label>
 			<select class="form-select" name="gmodsyn" id="gmodsyn" style="width: 50%;">
-				<option value="None">No Selection</option>
+				<option value="None">Select</option>
 				<option value="Peptides">Peptides</option>
 				<option value="Proteins">Proteins</option>
 			</select>

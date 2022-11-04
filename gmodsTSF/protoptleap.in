@@ -1,7 +1,7 @@
 #tleap1ligs.in 
 # To amber topology and parameter files for convertion to gromacs using acype for peptide and protein
 source leaprc.gaff2 #
-source leaprc.protein.ff14SB #leaprc.protein.ff14SB OR leaprc.protein.ff19SB #
+source leaprc.protein.ff19SB #leaprc.protein.ff14SB OR leaprc.protein.ff19SB #
 source leaprc.water.tip3p #
 ppmore = loadPDB ppmore.pdb #
 set default PBRadii mbondi2 #

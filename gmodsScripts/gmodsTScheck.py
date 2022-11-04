@@ -1,24 +1,9 @@
 #!/usr/bin/env python
 
 """
-    Requirements: Python 3 or higher
-                  Antechamber and related AmberTools
-                  OpenBabel (strongly recommended for use with acpype)
-				  acpype (latest version recommended with all its requirements)
-				  Gromacs (Compulsory)
-                  flask (Compulsory)
-                  flaskwebgui (recommended)
-                  pyfladesk (recommended)
-
     This code is released under GNU General Public License V3.
 
           <<<  NO WARRANTY AT ALL!!!  >>>
-
-    It was inspired by:
-
-    - CS50 online training for which this code serves as part of the final project
-
-	- PLEASE Read the README.md file and also follow instructions on the GUI and/or Terminal
 
 	Daniyan, Oluwatoyin Michael, B.Pharm. M.Sc. (Pharmacology) and Ph.D. (Science) Biochemistry
     Department of Pharmacology, Faculty of Pharmacy
@@ -29,30 +14,27 @@
 """
 import sys
 
-if sys.version_info[0] < 3:
-	raise Exception("Python 3 or a more recent version is required.")
+if sys.version_info < (3, 5):
+	raise Exception("Python 3.5 or a more recent version is required.")
 
 import os
-import glob
-import subprocess
 import time
 from pathlib import Path
 import shutil
-import random
-import string
-import math
-from colored import fore, back, style
-from tkinter import Tk, filedialog
-from inputimeout import inputimeout, TimeoutOccurred
-from pytimedinput import timedInput
 
-from gmodsScripts.gmodsHelpers import topolsplit, indexoflines, printWarning, printNote, select_folder, gmxtop
+from gmodsScripts.gmodsHelpers import topolsplit, indexoflines, printWarning, printNote, gmxtop
 
 def checktopsimilarities(mtsavedir):
 	""" To run this script you must navigate to the directory containing topology files to be compared """
-	printNote("PLEASE TAKE NOTE OF THE FOLLOWING:")
-	printNote("Only one of the Ligand(s) that shares similar or identical [ moleculetype ] name will be used while generating molecule type file. Others will be skipped. Where this occurs, please crosscheck the identified structure file(s), and if you want to include the file(s), ensure they have unique molecule name and rerun")
+	print('\n')
+	printNote("PLEASE TAKE NOTE OF THE FOLLOWING FOR MOLECULE TYPE GENERATION:")
+	print("1.	Only one of the Ligands with identical [ moleculetype ] name will be used.")
+	print("2.	Any other files with similar molecule types identity will be skipped.")
+	print("3.	Crosscheck to decide on wither or not you want to include the file(s).")
+	print("4.	To include, ensure each file has unique molecule name and rerun")
+	print('\n')
 
+	print("Similarity checks in progress ...")
 	time.sleep(10)
 
 	# Get the list of files
@@ -111,7 +93,7 @@ def checktopsimilarities(mtsavedir):
 			open2.close()
 
 		if Aidentical > 2 and Bidentical > 1:
-			print(ligname, "shares similar [ moleculetype ] name and some residues with a ligand already included in topology file. This file will be skipped")
+			print(f"{ligname} shares similar Moleculetypes & Recidues with existing topology. Skipped")
 			time.sleep(5)
 			lastline = len(name1) - 1
 			while lastline < len(name1):
@@ -127,7 +109,7 @@ def checktopsimilarities(mtsavedir):
 			continue
 
 		elif Aidentical > 2 and Bidentical <= 1:
-			print(ligname, "[ moleculetype ] name is identitical with a ligand already included in topology file. This file will be skipped")
+			print(f"{ligname} [ moleculetype ] name is identitical to exisitng topology file. Skipped")
 			time.sleep(5)
 			lastline = len(name1) - 1
 			while lastline < len(name1):
@@ -144,7 +126,7 @@ def checktopsimilarities(mtsavedir):
 
 		else:
 			if Bidentical > 1 and Aidentical <= 2:
-				print(ligname, "shares some residues with one or more ligands. This may not affect your work. You may however wish to check to be doubling sure")
+				print(f"{ligname} shares some residues with one or more ligands. Included, but you may wish to check")
 				time.sleep(5)
 
 			lastline = len(name1) - 1
@@ -164,11 +146,13 @@ def checktopsimilarities(mtsavedir):
 		ln += 1
 
 	file_mn.close()
+	print('\n')
 	return 'LIGS_mn.itp'
 
 
 def Checkligtop(ligtop, ff):
 	# Set some needed variables
+	print('\n')
 	tlpindex = indexoflines(ligtop)
 	atlp = int(tlpindex['atomtypes'])
 	mtlp = int(tlpindex['moleculetype'])
@@ -185,32 +169,29 @@ def Checkligtop(ligtop, ff):
 	while True:
 		nT += 1
 		if nT > 3:
-			break
+			print("You have exceeded maximum trying attempts")
+			printWarning("Checked version of ligand topology cannot be generated")
+			print("The platform will use the unchecked original file")
+			time.sleep(5)
+			return ligtop
 
 		gmxtopff, topffdir = gmxtop()
 		gmxtopdir = os.path.join(topffdir, ff)
 		
-		if not len(gmxtopff) > 0:
-			print(f"The specified directory, {gmxtopdir}, is not a valid Gromacs forcefield directory")
-			printNote("Trying again ...")
-			continue
-			
-		elif not Path(ff).stem in gmxtopff:
-			print(f"The specified forcefield, {ff}, is missing in the selected/detected directory")
-			printNote("You might have selected a directory with an incomplete list of forcefields")
-			printNote("Trying again ...")
-			continue
-			
-		elif not os.path.isdir(gmxtopdir):
-			print(gmxtopdir, "that was autodetected, is not a valid forcefield directory")
-			printNote("Trying again ...")
-			continue
+		if not (len(gmxtopff) > 0 or Path(ff).stem in gmxtopff):
+			print(f"The specified forcefield, {ff}, is missing in the supplied directory")
+			response = input("To continue anyway, type YES/y. Otherwise, press ENTER: ")
+			if not (response.lower() == "yes" or response.lower() == "y"):
+				print("Trying again ...")
+				continue
+			else:
+				printWarning("Checked version of ligand topology can not be generated")
+				print("The platform will use the unchecked original file")
+				time.sleep(5)
+				return ligtop
 			
 		else:
-			print("Your topology directory is", gmxtopdir)
 			break
-
-	time.sleep(5)
 
 	lsgmxtopdir = os.listdir(gmxtopdir)
 	for tp in lsgmxtopdir:
@@ -262,11 +243,11 @@ def Checkligtop(ligtop, ff):
 	# Check to be sure new ligand topology has been successfully generated
 	checktlp = os.listdir()
 	if not "chkLIG.top" in checktlp:
-		printWarning("Something went wrong. Generating checked version of ligand topology was not successful")
+		printWarning("Generating checked version of ligand topology was not successful")
 		print("The platform will use the unchecked original file")
 		time.sleep(5)
 		return ligtop
 	else:
-		printNote("checked version of ligand topology has been generated successfully")
+		printNote(f"checked version of {ligtop} has been generated successfully")
 		time.sleep(5)
 		return 'chkLIG.top'

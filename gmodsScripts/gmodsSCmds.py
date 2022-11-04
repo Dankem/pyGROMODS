@@ -1,24 +1,9 @@
 #!/usr/bin/env python
 
 """
-    Requirements: Python 3 or higher
-                  Antechamber and related AmberTools
-                  OpenBabel (strongly recommended for use with acpype)
-				  acpype (latest version recommended with all its requirements)
-				  Gromacs (Compulsory)
-                  flask (Compulsory)
-                  flaskwebgui (recommended)
-                  pyfladesk (recommended)
-
     This code is released under GNU General Public License V3.
 
           <<<  NO WARRANTY AT ALL!!!  >>>
-
-    It was inspired by:
-
-    - CS50 online training for which this code serves as part of the final project
-
-	- PLEASE Read the README.md file and also follow instructions on the GUI and/or Terminal
 
 	Daniyan, Oluwatoyin Michael, B.Pharm. M.Sc. (Pharmacology) and Ph.D. (Science) Biochemistry
     Department of Pharmacology, Faculty of Pharmacy
@@ -29,8 +14,8 @@
 """
 import sys
 
-if sys.version_info[0] < 3:
-    raise Exception("Python 3 or a more recent version is required.")
+if sys.version_info < (3, 5):
+    raise Exception("Python 3.5 or a more recent version is required.")
 
 import os
 import subprocess
@@ -39,22 +24,18 @@ import time
 import shutil
 import random
 import string
-import math
-import glob
-from tkinter import Tk, filedialog
-from inputimeout import inputimeout, TimeoutOccurred
-from pytimedinput import timedInput
 
-from gmodsScripts.gmodsHelpers import printWarning, printNote, tinput, select_folder, gmxtop, cleanup
+from gmodsScripts.gmodsHelpers import printWarning, printNote, tinput, cleanup
 
 scriptDIRa = os.path.abspath(os.path.dirname(sys.argv[0]))
 
 def SCmds(appDIR, gmxDIR):
+    print('\n')
     # Set some environment variables
     scriptDIR = appDIR
     GMX_MDS = gmxDIR
 
-    print("User MDS working directory set to: ", GMX_MDS)
+    print(f"User MDS working directory set to: {GMX_MDS}")
 
     # Set global activation variables to include opncl headers in work subdirectories
     opencl_activate = 0
@@ -106,6 +87,7 @@ def SCmds(appDIR, gmxDIR):
         raise Exception(nmdpn, "mdp file(s) missing. Please make sure all files are correctly uploaded")
 
     print("found needed .mdp files")
+    print('\n')
 
     # Perform initial checks of the required files in MDSHOME directory
     mdsfiles = os.listdir(gmxmdsdir)
@@ -124,40 +106,33 @@ def SCmds(appDIR, gmxDIR):
 
     if 'posre.itp' in mdsfiles and 'posre_udp.itp' in mdsfiles:
         printNote("Both posre.itp and posre_udp.itp restraint files are present")
-
-        printNote("If defined -DPOSRE in mdp file(s), posre.itp will be used. To use posre_udp.itp instead, backup posre.itp and rename posre_udp.itp to posre.itp")
-
-        printNote("If defined -DPOSRE_UDP in mdp file(s), posre_udp.itp will be used. To use posre.itp instead, backup posre_udp.itp and rename posre.itp to posre_udp.itp")
+        printNote("Only the one defined {-DPOSRE or -DPOSRE_UDP} in mdp file(s), will be used.")
 
     if 'topol.top' not in mdsfiles:
-        printWarning("topol.top file is missing")
-        printNote("Please include the file in your working folder - mdsgmx, or if need be rename your generated top file to topol.top and run the mdsetup again to upload all required files")
-        raise Exception("topol.top file is missing. Please upload necessary files from mdsetup page")
+        printWarning("topol.top file is missing. You must include it in the working folder")
+        print("If need be, you may also rename tlptopol.top to topol.top for use instead")
+        raise Exception("topol.top file is missing. Please rerun and upload this file")
 
     if 'LIGS_at.itp' not in mdsfiles and 'LIGS_mt.itp' not in mdsfiles:
-        printWarning("Incomplete files. Important Ligand(s) topology file(s) are missing")
-        printNote("This may not affect the MDS if using tlptopol.top instead of topol.top. In that case tlptopol.top would have been renamed to topol.top. Also, working with protein and peptides without ligands may not be affected")
+        printWarning("Important Ligand(s) topology file(s) are missing")
+        printNote("Don't worry, if all molecule and atom types are captured in the topology file")
         response = tinput("To continue without these files, type YES/y or press ENTER to abort: ", 10, "y")
         if not (response.lower() == "yes" or response.lower() == "y"):
             raise Exception("Please upload necessary files from mdsetup page")
 
     if 'fsolvated.gro' not in mdsfiles:
-        printWarning("Incomplete files. The fsolvated.gro file is missing. Check the following:")
-        printNote("1). You may need to rename manually generated solvated.gro file to fsolvated.gro")
-        printNote("2). OR, if genrated, rename 'ufsolvate.gro' file to fsolvated.gro")
-        printNote("Now, reupload your files and try again")
+        printWarning("The fsolvated.gro file is missing. Check and reupload")
+        printNote("You may need to manually rename generated solvated.gro or ufsolvate.gro file to fsolvated.gro")
         raise Exception("The fsolvated.gro is missiing. Please upload necessary files from mdsetup page")
 
-    print("MDSHOME folder has been created to host all MDS run. It location is ", mdshomedir)
-    print("mdsgmx subfolder has been created inside MDSHOME. It location is ", gmxmdsdir)
-
-    time.sleep(10)
+    print(f"MDSHOME folder has been created to host all MDS run. It location is {mdshomedir}")
+    print(f"mdsgmx subfolder has been created inside MDSHOME. It location is {gmxmdsdir}")
 
     os.chdir(mdshomedir)
 
+    print('\n')
 	# Generate unique id number for the project
     printNote("mdsgmx subfolder will now be renamed with added unique ID reflecting the current MDS run")
-    printNote("PLEASE NOTE: Any former MDS run - failed or succeed - can be assessed either as backup folder or as renamed folder inside MDSHOME")
 
     while True:
         idnumber = random.randint(0, 9)
@@ -171,17 +146,15 @@ def SCmds(appDIR, gmxDIR):
             os.rename(gmxmdsdir, newWDIR)
             break
 
-    print("Your Unique ID for MDS run is: ", ID)
+    print(f"Your Unique ID for MDS run is: {ID}")
 
     # Change working folder name by adding the unique ID
     mdswork_dir = os.path.join(mdshomedir, newWDIR)
-    print("Current workspace directory set to ", mdswork_dir)
+    print(f"Current workspace directory set to {mdswork_dir}")
 
     os.chdir(mdswork_dir)
 
     printNote("A new directory will be created for each level of MDS at each step in the workflow for maximum organization")
-
-    time.sleep(5)
 
     # User can set marwarn for grompp if needed
     maxwarn = 0
@@ -195,14 +168,10 @@ def SCmds(appDIR, gmxDIR):
                 print("You must supply digit value for maxwarn to continue")
                 continue
             else:
-                print("maxwarn has been changed to: ", maxwarn)
+                print(f"maxwarn has been changed to: {maxwarn}")
                 break
 
-    #################################
-    # ENERGY MINIMIZATION 1: STEEP  #
-    #################################
-    print("Starting Minimization for Solvated Complex...")
-
+    # Copy mdp files into mdps sub-folder in the working directory
     try:
         os.mkdir("mdps")
     except FileExistsError:
@@ -214,6 +183,12 @@ def SCmds(appDIR, gmxDIR):
         shutil.copy(os.path.join(fMDP, file), './')
 
     os.chdir('../')
+    print('\n')
+
+    #################################
+    # ENERGY MINIMIZATION 1: STEEP  #
+    #################################
+    print("Executing: Minimization for Solvated Complex...")
 
     try:
         os.mkdir("EM")
@@ -222,69 +197,53 @@ def SCmds(appDIR, gmxDIR):
         os.mkdir("EM")
 
     os.chdir("EM")
+    fem = open("emerror.txt", "a")
+
     if opencl_activate > 0:
         oclfiles = os.listdir(opencldir)
         for ocl in oclfiles:
             shutil.copy(os.path.join(opencldir, ocl), './')
 
     # Iterative calls to grompp and mdrun to run the simulations
+    cmdsd = ['gmx', 'grompp', '-f', '../mdps/minzsd.mdp', '-c', '../fsolvated.gro', '-p', '../topol.top', '-o', 'minzsd.tpr', '-maxwarn', str(maxwarn)]
     try:
-        subprocess.run('gmx grompp -f ../mdps/minzsd.mdp -c ../fsolvated.gro -p ../topol.top -o minzsd.tpr -maxwarn ' + str(maxwarn), shell=True)
-    except subprocess.CalledProcessError as e:
-        print(e)
-        print("Something went wrong with above error. Trying again...")
-        Err1a = os.system('gmx grompp -f ../mdps/minzsd.mdp -c ../fsolvated.gro -p ../topol.top -o minzsd.tpr -maxwarn ' + str(maxwarn))
-        if not Err1a == 0:
-            print("Generating needed files failed. Please check error message")
-
-    try:
-        subprocess.run('gmx mdrun -deffnm minzsd', shell=True)
-    except subprocess.CalledProcessError as e:
-        Err1b = os.system('gmx mdrun -deffnm minzsd')
-        if not Err1b == 0:
-            print("Steepest Descent Minimization failed. Please check error message")
+        subprocess.run(cmdsd, stderr=subprocess.STDOUT, stdout=fem, check=True, text=True)
+        subprocess.run(['gmx', 'mdrun', '-deffnm', 'minzsd'], stderr=subprocess.STDOUT, stdout=fem, check=True, text=True)
+    except subprocess.SubprocessError as e:
+        print(f"Steepest Descent Minimization encountered error {e}")
 
     if not ('minzsd.tpr' in os.listdir() or 'minzsd.gro' in os.listdir()):
-        printWarning("Steepest Descent Minimization failed. Please check error message")
+        printWarning("Steepest Descent Minimization failed. Please check emerror.txt file")
     else:
         printNote("Steepest Descent Minimization Completed Siccessfully")
 
-    time.sleep(5)
-
+    cmdcg = ['gmx', 'grompp', '-f', '../mdps/minzcg.mdp', '-c', 'minzsd.gro', '-p', '../topol.top', '-o', 'minzcg.tpr', '-maxwarn', str(maxwarn)]
     try:
-        subprocess.run('gmx grompp -f ../mdps/minzcg.mdp -c minzsd.gro -p ../topol.top -o minzcg.tpr -maxwarn ' + str(maxwarn), shell=True)
-    except subprocess.CalledProcessError as e:
-        print(e)
-        print("Something went wrong with above error. Trying again...")
-        Err1c = os.system('gmx grompp -f ../mdps/minzcg.mdp -c minzsd.gro -p ../topol.top -o minzcg.tpr -maxwarn ' + str(maxwarn))
-        if not Err1c == 0:
-            print("Generating needed files failed. Please check error message")
-
-    try:
-        subprocess.run('gmx mdrun -deffnm minzcg', shell=True)
-    except subprocess.CalledProcessError as e:
-        Err1d = os.system('gmx mdrun -deffnm minzcg')
-        if not Err1d == 0:
-            printWarning("Something was not right")
+        subprocess.run(cmdcg, stderr=subprocess.STDOUT, stdout=fem, check=True, text=True)
+        subprocess.run(['gmx', 'mdrun', '-deffnm', 'minzcg'], stderr=subprocess.STDOUT, stdout=fem, check=True, text=True)
+    except subprocess.SubprocessError as e:
+        print(f"Something went wrong with error {e}")
+        printWarning("Generating needed files failed. Please check error message")
 
     if not ('minzcg.tpr' in os.listdir() or 'minzcg.gro' in os.listdir()):
         printWarning("Conjugate Gradient Minimization failed. Please check error message")
-        printWarning("There were errors during Minimization Phases")
-        printNote("It is advisable to abort the processs, check your files and errors and rerun")
-        response = tinput("To abort type YES/y. Otherwise process will continue anyway ", 10, "y")
+        printNote("It is advisable to abort the processs, check emerror.txt file")
+        response = tinput("To abort type YES/y. Otherwise press ENTER to continue anyway ", 10, "y")
         if response.lower() == "yes" or response.lower() == "y":
+            fem.close()
             raise Exception("Process Aborted. Make necessary corrections and restart")
     else:
         printNote("Conjugate Gradient Minimization Completed Siccessfully")
         printNote("Minimization Phases Completed Successfully")
 
+    fem.close()
     os.chdir('../')
-    time.sleep(10)
+    print('\n')
 
     #####################
     # NVT EQUILIBRATION #
     #####################
-    print("Starting Constant Volume Equilibration...")
+    print("Executing: Constant Volume Equilibration...")
 
     try:
         os.mkdir("NVT")
@@ -293,43 +252,40 @@ def SCmds(appDIR, gmxDIR):
         os.mkdir("NVT")
 
     os.chdir("NVT")
+    fnvt = open("nvterror.txt", "a")
     if opencl_activate > 0:
-        oclfiles = os.listdir(opencldir)
+        oclfiles = os.listdir('../../opencl')
         for ocl in oclfiles:
-            shutil.copy(os.path.join(opencldir, ocl), './')
+            os.system('cp ../../opencl/' + ocl + ' ./')
+
+    cmdnvt = ['gmx', 'grompp', '-f', '../mdps/equnvt.mdp', '-c', '../EM/minzcg.gro', '-r', '../EM/minzcg.gro', '-p', '../topol.top', '-o', 'equnvt.tpr', '-maxwarn', str(maxwarn)]
 
     try:
-        subprocess.run('gmx grompp -f ../mdps/equnvt.mdp -c ../EM/minzcg.gro -r ../EM/minzcg.gro -p ../topol.top -o equnvt.tpr -maxwarn ' + str(maxwarn), shell=True)
-    except subprocess.CalledProcessError as e:
+        subprocess.run(cmdnvt, stderr=subprocess.STDOUT, stdout=fnvt, check=True, text=True)
+        subprocess.run(['gmx', 'mdrun', '-deffnm', 'equnvt'], stderr=subprocess.STDOUT, stdout=fnvt, check=True, text=True)
+    except subprocess.SubprocessError as e:
         print(e)
-        print("Something went wrong with above error. Trying again...")
-        Err2a = os.system('gmx grompp -f ../mdps/equnvt.mdp -c ../EM/minzcg.gro -r ../EM/minzcg.gro -p ../topol.top -o equnvt.tpr -maxwarn ' + str(maxwarn))
-        if not Err2a == 0:
-            print("Generating needed files for NVT failed. Please check error message")
-
-    try:
-        subprocess.run('gmx mdrun -deffnm equnvt', shell=True)
-    except subprocess.CalledProcessError as e:
-        Err2b = os.system('gmx mdrun -deffnm equnvt')
-        if not Err2b == 0:
-            printWarning("Something was not right")
+        printWarning("Something was not right with above error. Checking....")
 
     if not ('equnvt.tpr' in os.listdir() or 'equnvt.gro' in os.listdir()):
         printWarning("There were errors during Constant Volume Equilibration Phase")
-        printNote("It is advisable to abort the processs, check your files and errors and rerun")
-        response = tinput("To abort type YES/y. Otherwise process will continue anyway ", 10, "y")
+        printNote("It is advisable to abort, and check nvterror.txt file for details")
+        response = tinput("To abort type YES/y. Otherwise press ENTER to continue anyway: ", 10, "y")
         if response.lower() == "yes" or response.lower() == "y":
+            fnvt.close()
             raise Exception("Process Aborted. Make necessary corrections and restart")
     else:
         printNote("Constant Volume Equilibration Successfully Completed")
+        fnvt.close()
 
     os.chdir('../')
-    time.sleep(10)
+    time.sleep(5)
+    print('\n')
 
     #####################
     # NPT EQUILIBRATION #
     #####################
-    print("Starting Constant Pressure Equilibration...")
+    print("Executing: Constant Pressure Equilibration...")
 
     try:
         os.mkdir("NPT")
@@ -338,43 +294,38 @@ def SCmds(appDIR, gmxDIR):
         os.mkdir("NPT")
 
     os.chdir("NPT")
+    fnpt = open("npterror.txt", "a")
     if opencl_activate > 0:
-        oclfiles = os.listdir(opencldir)
+        oclfiles = os.listdir('../../opencl')
         for ocl in oclfiles:
-            shutil.copy(os.path.join(opencldir, ocl), './')
+            os.system('cp ../../opencl/' + ocl + ' ./')
 
+    cmdnpt = ['gmx', 'grompp', '-f', '../mdps/equnpt.mdp', '-c', '../NVT/equnvt.gro', '-r', '../NVT/equnvt.gro', '-p', '../topol.top', '-t', '../NVT/equnvt.cpt', '-o', 'equnpt.tpr', '-maxwarn', str(maxwarn)]
     try:
-        subprocess.run('gmx grompp -f ../mdps/equnpt.mdp -c ../NVT/equnvt.gro -r ../NVT/equnvt.gro -p ../topol.top -t ../NVT/equnvt.cpt -o equnpt.tpr -maxwarn ' + str(maxwarn), shell=True)
-    except subprocess.CalledProcessError as e:
-        print(e)
-        print("Something went wrong with above error. Trying again...")
-        Err3a = os.system('gmx grompp -f ../mdps/equnpt.mdp -c ../NVT/equnvt.gro -r ../NVT/equnvt.gro -p ../topol.top -t ../NVT/equnvt.cpt -o equnpt.tpr -maxwarn ' + str(maxwarn))
-        if not Err3a == 0:
-            print("Generating needed files for NPT failed. Please check error message")
-
-    try:
-        subprocess.run('gmx mdrun -deffnm equnpt', shell=True)
-    except subprocess.CalledProcessError as e:
-        Err3b = os.system('gmx mdrun -deffnm equnpt')
-        if not Err3b == 0:
-            printWarning("Something was not right")
+        subprocess.run(cmdnpt, stderr=subprocess.STDOUT, stdout=fnpt, check=True, text=True)
+        subprocess.run(['gmx', 'mdrun', '-deffnm', 'equnpt'], stderr=subprocess.STDOUT, stdout=fnpt, check=True, text=True)
+    except subprocess.SubprocessError as e:
+        printWarning("Something was not right. Checking...")
 
     if not ('equnpt.tpr' in os.listdir() or 'equnpt.gro' in os.listdir()):
         printWarning("There were errors during Constant Pressure Equilibration Phase")
-        printNote("It is advisable to abort the processs, check your files and errors and rerun")
-        response = tinput("To abort type YES/y. Otherwise process will continue anyway ", 10, "y")
+        printNote("It is advisable to abort. Please check npterror.txt file for details")
+        response = tinput("To abort type YES/y. Otherwise press ENTER to continue anyway: ", 10, "y")
         if response.lower() == "yes" or response.lower() == "y":
+            fnpt.close()
             raise Exception("Process Aborted. Make necessary corrections and restart")
     else:
         printNote("Constant Pressure Equilibration Successfully Completed")
+        fnpt.close()
 
     os.chdir('../')
-    time.sleep(10)
+    time.sleep(5)
+    print('\n')
 
     ####################
     # EQ PRODUCTION MD #
     ####################
-    print("Starting Equilibration Production MD simulation...")
+    print("Executing: Equilibration Production MD simulation...")
 
     try:
         os.mkdir("EMD")
@@ -383,43 +334,38 @@ def SCmds(appDIR, gmxDIR):
         os.mkdir("EMD")
 
     os.chdir("EMD")
+    feq = open("eqerror.txt", "a")
     if opencl_activate > 0:
-        oclfiles = os.listdir(opencldir)
+        oclfiles = os.listdir('../../opencl')
         for ocl in oclfiles:
-            shutil.copy(os.path.join(opencldir, ocl), './')
+            os.system('cp ../../opencl/' + ocl + ' ./')
 
+    cmdeq = ['gmx', 'grompp', '-f', '../mdps/equpmd.mdp', '-c', '../NPT/equnpt.gro', '-r', '../NPT/equnpt.gro', '-p', '../topol.top', '-t', '../NPT/equnpt.cpt', '-o', 'equpmd.tpr', '-maxwarn', str(maxwarn)]
     try:
-        subprocess.run('gmx grompp -f ../mdps/equpmd.mdp -c ../NPT/equnpt.gro -r ../NPT/equnpt.gro -p ../topol.top -t ../NPT/equnpt.cpt -o equpmd.tpr -maxwarn ' + str(maxwarn), shell=True)
-    except subprocess.CalledProcessError as e:
-        print(e)
-        print("Something went wrong with above error. Trying again...")
-        Err4a = os.system('gmx grompp -f ../mdps/equpmd.mdp -c ../NPT/equnpt.gro -r ../NPT/equnpt.gro -p ../topol.top -t ../NPT/equnpt.cpt -o equpmd.tpr -maxwarn ' + str(maxwarn))
-        if not Err4a == 0:
-            print("Generating needed files for EQ Production MD failed. Please check error message")
-
-    try:
-        subprocess.run('gmx mdrun -deffnm equpmd', shell=True)
-    except subprocess.CalledProcessError as e:
-        Err4b = os.system('gmx mdrun -deffnm equpmd')
-        if not Err4b == 0:
-            printWarning("Something was not right")
+        subprocess.run(cmdeq, stderr=subprocess.STDOUT, stdout=feq, check=True, text=True)
+        subprocess.run(['gmx', 'mdrun', '-deffnm', 'equpmd'], stderr=subprocess.STDOUT, stdout=feq, check=True, text=True)
+    except subprocess.SubprocessError as e:
+        printWarning("Something was not right. Checking...")
 
     if not ('equpmd.tpr' in os.listdir() or 'equpmd.gro' in os.listdir()):
         printWarning("There were errors during Equilibration Production MD Phase")
-        printNote("It is advisable to abort the processs, check your files and errors and rerun")
-        response = tinput("To abort type YES/y. Otherwise process will continue anyway ", 10, "y")
+        printNote("It is advisable to abort, and check eqerror.txt file for details")
+        response = tinput("To abort type YES/y. Otherwise press ENTER to continue anyway ", 10, "y")
         if response.lower() == "yes" or response.lower() == "y":
+            feq.close()
             raise Exception("Process Aborted. Make necessary corrections and restart")
     else:
         printNote("Equilibration Production MD Successfully Completed")
+        feq.close()
 
     os.chdir('../')
-    time.sleep(10)
+    time.sleep(5)
+    print('\n')
 
     #################
     # PRODUCTION MD #
     #################
-    print("Starting Production MD simulation...")
+    print("Executing: Production MD simulation...")
 
     try:
         os.mkdir("PMD")
@@ -428,35 +374,29 @@ def SCmds(appDIR, gmxDIR):
         os.mkdir("PMD")
 
     os.chdir("PMD")
+    fpmd = open("pmderror.txt", "a")
     if opencl_activate > 0:
-        oclfiles = os.listdir(opencldir)
+        oclfiles = os.listdir('../../opencl')
         for ocl in oclfiles:
-            shutil.copy(os.path.join(opencldir, ocl), './')
+            os.system('cp ../../opencl/' + ocl + ' ./')
+
+    cmdpmd = ['gmx', 'grompp', '-f', '../mdps/pmds.mdp', '-c', '../EMD/equpmd.gro', '-r', '../EMD/equpmd.gro', '-p', '../topol.top', '-t', '../EMD/equpmd.cpt', '-o', 'pmds.tpr', '-maxwarn', str(maxwarn)]
 
     try:
-        subprocess.run('gmx grompp -f ../mdps/pmds.mdp -c ../EMD/equpmd.gro -r ../EMD/equpmd.gro -p ../topol.top -t ../EMD/equpmd.cpt -o pmds.tpr -maxwarn ' + str(maxwarn), shell=True)
-    except subprocess.CalledProcessError as e:
-        print(e)
-        print("Something went wrong with above error. Trying again...")
-        Err5a = os.system('gmx grompp -f ../mdps/pmds.mdp -c ../EMD/equpmd.gro -r ../EMD/equpmd.gro -p ../topol.top -t ../EMD/equpmd.cpt -o pmds.tpr -maxwarn ' + str(maxwarn))
-        if not Err4a == 0:
-            print("Generating needed files for Production MD failed. Please check error message")
-
-    try:
-        subprocess.run('gmx mdrun -deffnm pmds', shell=True)
-    except subprocess.CalledProcessError as e:
-        Err5b = os.system('gmx mdrun -deffnm pmds')
-        if not Err5b == 0:
-            printWarning("Something was not right")
+        subprocess.run(cmdpmd, stderr=subprocess.STDOUT, stdout=fpmd, check=True, text=True)
+        subprocess.run(['gmx', 'mdrun', '-deffnm', 'pmds'], stderr=subprocess.STDOUT, stdout=fpmd, check=True, text=True)
+    except subprocess.SubprocessError as e:
+        printWarning("Something was not right. Checking...")
 
     if not ('pmds.tpr' in os.listdir() or 'pmds.gro' in os.listdir()):
-        printWarning("There were errors during Production MD Phase")
-        printNote("Please check your files and errors and be sure all is in order. Otherwise rerun")
+        printWarning("There were errors during Production MD Phase. Check pmderror.txt file for details")
     else:
         printNote("Production MD Successfully Completed")
 
+    fpmd.close()
     os.chdir('../')
     time.sleep(5)
+    print('\n')
 
 	##################
     # CLEAN UP FILES #
@@ -491,7 +431,7 @@ def SCmds(appDIR, gmxDIR):
     else:
         os.chdir('../../')
 
-    time.sleep(10)
+    time.sleep(5)
 
     # End
-    print("Ending. Job Completed Successfully for MDS codenamed", newWDIR)
+    print(f"Ending. Job Completed Successfully for MDS codenamed {newWDIR}")
