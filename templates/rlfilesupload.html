@@ -10,6 +10,29 @@
 
 {% block script %}
 	<script>
+		function myFW() {
+			let jdictff = {{ dictff| tojson }};
+			let x = document.getElementById("gmodsff").value;
+			let y = document.getElementById("watertype");
+
+			y.options.length = 1;
+			if (x in jdictff) {
+				if (y.style.display = "none") {
+					y.style.display = "block";
+				}
+
+				let wmodels = jdictff[x];
+				for (let wm in wmodels) {
+					model = wmodels[wm];
+					y.options[y.options.length] = new Option(model, model);
+				}
+			} else {
+				if (y.style.display = "none") {
+					y.style.display = "block";
+				}
+			}
+		}
+
 		function submitDisabled() {
 			d = document.getElementById("button");
 			if (d.disabled === false) {
@@ -60,15 +83,20 @@
 		{% elif N == 3 and F == 0 %}
 			* One or more Matching pairs of receptor and ligand (at a time) can be uploaded<br>
 			* Ligand(s) must be in .pdb or .mol2 while Receptor must be .pdb file format<br><br>
-			* Please first reselect your preferred group of forcefield for each pair of receptor and ligand<br><br>
+			* Please first reselect your preferred forcefield and water model for each pair of receptor and ligand<br><br>
 
-			<label for="setforcefield">Choose your preferred group of forcefield</label>
-			<select class="form-select" name="gmodsff" id="gmodsff">
-				<option value="None">No Selection</option>
-				<option value="Amber">Amber</option>
-				<option value="Charmm">Charmm</option>
-				<option value="Gromos">Gromos</option>
-				<option value="Opls">Opls</option>
+			<label for="setforcefield">Choose your preferred forcefield</label><br>
+			<select class="form-select" name="gmodsff" id="gmodsff" style="width: 50%;" onchange="myFW()">
+				<option value="select">select</option>
+				{% for topf in gmxtoplist %}
+					<option value={{ topf }}>{{ topf }}</option>
+				{% endfor %}
+			</select>
+			<br><br>
+
+			<label for="selwater">Choose your preferred Water Model</label><br>
+			<select class="form-select" name="watertype" id="watertype" style="width: 50%;">
+				<option value="select">select</option>
 			</select>
 			<br><br>
 
@@ -85,15 +113,20 @@
 			* Ligand(s) must be in .pdb or .mol2 while Receptor must be .pdb file format<br>
 			* Ligand topology must be in .top or .itp file format and compatible with preselected forcefield<br><br>
 			* Ligand topology should be named similar to the ligand structure they're meant for<br><br>
-			* Please first reselect your preferred group of forcefield for each pair of receptor and ligand<br><br>
+			* Please first select your preferred forcefield and water model for each pair of receptor and ligand<br><br>
 
-			<label for="setforcefield">Choose your preferred group of forcefield</label>
-			<select class="form-select" name="gmodsff" id="gmodsff">
-				<option value="None">No Selection</option>
-				<option value="Amber">Amber</option>
-				<option value="Charmm">Charmm</option>
-				<option value="Gromos">Gromos</option>
-				<option value="Opls">Opls</option>
+			<label for="setforcefield">Choose your preferred forcefield</label><br>
+			<select class="form-select" name="gmodsff" id="gmodsff" style="width: 50%;" onchange="myFW()">
+				<option value="select">select</option>
+				{% for topf in gmxtoplist %}
+				<option value={{ topf }}>{{ topf }}</option>
+				{% endfor %}
+			</select>
+			<br><br>
+			
+			<label for="selwater">Choose your preferred Water Model</label><br>
+			<select class="form-select" name="watertype" id="watertype" style="width: 50%;">
+				<option value="select">select</option>
 			</select>
 			<br><br>
 

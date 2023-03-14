@@ -20,7 +20,11 @@
 		{% endfor %}
 	{% elif N == 3 %}
 		<h1>Uploaded Ligand File</h1>
-		{{ Lfilelist.filename }}
+		{{ Lfilelist.filename }}<br><br>
+
+		<h1>Selected Forcefield and Water model</h1>
+		{{ ffselect }}<br>
+		{{ ffwater }}
 	{% endif %}
 
 	{% if (F > 0 and not N > 2) %}

@@ -128,8 +128,8 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 	# Generate unique id number for the project
 	while True:
 		idnumber = random.randint(0, 9)
-		idalpha1 = random.choice(string.ascii_letters)
-		idalpha2 = random.choice(string.ascii_letters)
+		idalpha1 = random.choice(string.ascii_uppercase)
+		idalpha2 = random.choice(string.ascii_uppercase)
 		ID = idalpha1 + str(idnumber) + idalpha2
 		foldername = name + "_" + str(ID)
 		if not os.path.isdir(foldername):
@@ -269,6 +269,12 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 
 			# We will now lock these defaults by changing mode to C
 			udefaults[5] = "C"
+		else:
+			udefaults[1] = defaults2(rftopfile)
+			if udefaults[1] == "none":
+				print("No water model was detected for your system")
+			else:
+				print(f"Your water model as contained in topol.top file is {udefaults[1]}")
 
 		# Now, let us genreated alternative amber topology file for use with gromacs
 		print("Generating alternative topology file...")

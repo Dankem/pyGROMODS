@@ -21,13 +21,16 @@
 """
 import sys
 
-if sys.version_info[0] < 3:
-    raise Exception("Python 3 or a more recent version is required.")
+if sys.version_info < (3, 5):
+    raise Exception("Python 3.5 or a more recent version is required.")
 
 from pathlib import Path
 import os
 import subprocess
 import shutil
+import platform
+import time
+import random
 
 try:
     import faulthandler
@@ -41,6 +44,7 @@ import gmodsScripts.gmodsRLsingle
 import gmodsScripts.gmodsSCmds
 import gmodsScripts.gmodsCONmds
 import gmodsScripts.gmodsPPmore
+from gmodsScripts.gmodsCRPackages import reqPackages_Check
 from gmodsScripts.gmodsHelpers import printWarning, printNote, select_folder, gmxtop
 
 from flask import Flask, flash, request, redirect, render_template, g
@@ -63,14 +67,81 @@ else:
 app.jinja_env.auto_reload = True
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 
+# Let's check your system to be sure all required packages are installed
+printNote("System checks for required packages in progress ...")
+check_packages = reqPackages_Check()
+printNote("Please check the above results and Respond to Popup Question")
+time.sleep(5)
+
+crp = Tk()
+crp.title("Platform Check Results")
+crp.withdraw()
+crp.attributes('-topmost', True)
+
+checkmessage = messagebox.askquestion("Platform Check Results", f"{check_packages} \n\n DO YOU REALLY WANT TO CONTINUE?")
+crp.destroy()
+
+if not checkmessage.lower() == "yes":
+    raise Exception("Operation Interrupted by User. Make necessary corrections and restart")
+else:
+    print(check_packages)
+    printNote("You have choosen to continue with the process")
+time.sleep(5)
+
 # Let's setup our GUI interface and add app and other parameters
-try:
-    from flaskwebgui import FlaskUI
-    ui = FlaskUI(app, width=825, height=650, port=1450, start_server='flask', close_server_on_exit=False)
-except ImportError:
-    printWarning("'flaskwebgui' is not installed or has errors")
-    printNote("To access GUI interface, copy the generated web link to your default browser instead")
-    ui = app
+# First, Let's generate unique port and check it availability
+gmodsport = ""
+while True:
+    tryport = ""
+    for rdport in random.sample(range(10), 4):
+        tryport += str(rdport)
+
+    try:
+        import socket as sk
+    except ImportError:
+        gmodsport = int(tryport)
+        break
+
+    s = sk.socket(sk.AF_INET, sk.SOCK_STREAM)
+    result = s.connect_ex(("127.0.0.1", int(tryport)))
+    if result == 0:
+        continue
+    else:
+        gmodsport = int(tryport)
+        break
+
+# Tested and trusted versions of flaskwebgui are bundled with the package to avoid breaking
+plat4m = platform.platform().split('-')
+if "WSL2" in plat4m or "wsl2" in plat4m:
+    try:
+        from gmodsScripts.flaskwebgui.flaskwebgui037 import FlaskUI
+        ui = FlaskUI(app, width=825, height=650, port=gmodsport, close_server_on_exit=False) # for v037
+    except Exception as e1:
+        print(f"'flaskwebgui' failed with error: {e1}")
+        print("Trying again ...")
+        try:
+            from gmodsScripts.flaskwebgui.flaskwebgui103 import FlaskUI
+            ui = FlaskUI(app=app, width=825, height=650, port=gmodsport, server="flask") # for v103
+        except Exception as e2:
+            printWarning(f"'flaskwebgui' failed with error: {e2}")
+            print("Please check and correct the errors")
+            printNote("To access GUI interface, copy the generated web link below to your default browser instead")
+            ui = app
+else:
+    try:
+        from gmodsScripts.flaskwebgui.flaskwebgui103 import FlaskUI
+        ui = FlaskUI(app=app, width=825, height=650, port=gmodsport, server="flask") # for v103
+    except Exception as e1:
+        print(f"'flaskwebgui' failed with error: {e1}")
+        print("Trying again ...")
+        try:
+            from gmodsScripts.flaskwebgui.flaskwebgui037 import FlaskUI
+            ui = FlaskUI(app, width=825, height=650, port=gmodsport, close_server_on_exit=False) # for v037
+        except Exception as e2:
+            printWarning(f"'flaskwebgui' failed with error: {e2}")
+            print("Check and correct the errors")
+            printNote("To access GUI interface, copy the generated web link below to your default browser instead")
+            ui = app
 
 # Setup how errors will be handled
 @app.errorhandler(Exception)
@@ -144,7 +215,8 @@ def quitme():
     qws.attributes('-topmost', True)
 
     quitmessage = messagebox.askquestion('Quiting pyGROMODS', 'DO YOU REALLY WANT TO QUIT pyGROMODS?')
-    
+    qws.destroy()
+
     if quitmessage.lower() == "yes":
         printNote("Closing the application. To restart, run again")
         print("Manually close the web GUI")
@@ -399,6 +471,9 @@ def rlupload():
     global N
     global F
     global ffselect
+    global gmxtoplist
+    global gmxtopdir
+    global dictff
 
     if request.method == 'POST':
         if (N == 1 and F == 0) or (N == 2 and F == 0):
@@ -508,7 +583,11 @@ def rlupload():
                 return redirect("/")
 
             if not request.form.get("gmodsff"):
-                flash('You must select a forcefileds group')
+                flash('You must select a forcefiled')
+                return redirect("/")
+
+            if not request.form.get("watertype"):
+                flash('You must select a water model')
                 return redirect("/")
 
             # Create subfolder for each ligand and receptor uploads
@@ -563,9 +642,10 @@ def rlupload():
                 Rfile.save(os.path.join(app.config['UPLOAD_FOLDER'], 'Receptors', Rfolder, Rfilename))
 
 		    # Store the submitted symbol as varibale and check if valid
+            ffwater = request.form.get("watertype")
             ffselect = request.form.get("gmodsff")
-            if not (ffselect == "Amber" or ffselect == "Charmm" or ffselect == "Gromos" or ffselect == "Opls"):
-                flash('You must select a forcefileds group')
+            if not (ffselect[0:5].capitalize() == "Amber" or ffselect[0:6].capitalize() == "Charmm" or ffselect[0:6].capitalize() == "Gromos" or ffselect[0:4].capitalize() == "Opls"):
+                flash('You must select a forcefiled. Try upload again')
                 return redirect("/")
 
             ligsff_file = os.path.join(app.config['UPLOAD_FOLDER'], 'Ligsff', Ffolder, ffselect)
@@ -573,8 +653,13 @@ def rlupload():
                 fileff = open(ligsff_file, "w")
                 fileff.close()
 
+            ligsww_file = os.path.join(app.config['UPLOAD_FOLDER'], 'Ligsff', Ffolder, ffwater)
+            if not (os.path.isdir(ligsww_file) or os.path.isfile(ligsww_file)):
+                fileww = open(ligsww_file, "w")
+                fileww.close()
+
             flash('Successful Receptor and Ligands files Upload. Click Uploads Menu to upload additional pair of receptor and ligand')
-            return render_template("upload.html", Lfilelist=Lfile, Rfilelist=Rfile, N=N, F=F, category='success')
+            return render_template("upload.html", Lfilelist=Lfile, Rfilelist=Rfile, ffselect=ffselect, ffwater=ffwater, N=N, F=F, category='success')
 
         elif (N == 3 and F == 1):
             # check if the post request has the file part
@@ -591,7 +676,11 @@ def rlupload():
                 return redirect("/")
 
             if not request.form.get("gmodsff"):
-                flash('You must select a forcefileds group')
+                flash('You must select a forcefiled xxx')
+                return redirect("/")
+
+            if not request.form.get("watertype"):
+                flash('You must select a water model')
                 return redirect("/")
 
             # Create subfolder for each ligand and receptor uploads
@@ -626,14 +715,35 @@ def rlupload():
                     y += 1
 
 		    # Store the submitted symbol as varibale and check if valid
+            ffwater = request.form.get("watertype")
             ffselect = request.form.get("gmodsff")
-            if not (ffselect == "Amber" or ffselect == "Charmm" or ffselect == "Gromos" or ffselect == "Opls"):
-                flash('You must select a forcefileds group')
+
+            if not (ffselect[0:5].capitalize() == "Amber" or ffselect[0:6].capitalize() == "Charmm" or ffselect[0:6].capitalize() == "Gromos" or ffselect[0:4].capitalize() == "Opls"):
+                flash('You must select a forcefiled. Try upload again')
                 return redirect("/")
 
-            ligsff_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'Ligsff', Ffolder, ffselect)
+            if ffselect[0:5].capitalize() == "Amber":
+                ff_dir = "Amber"
+            elif ffselect[0:6].capitalize() == "Charmm":
+                ff_dir = "Charmm"
+            elif ffselect[0:6].capitalize() == "Gromos":
+                ff_dir = "Gromos"
+            elif ffselect[0:4].capitalize() == "Opls":
+                ff_dir = "Opls"
+
+            ligsff_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'Ligsff', Ffolder, ff_dir)
             if not os.path.isdir(ligsff_dir):
                 os.mkdir(ligsff_dir)
+
+            ligsff_file = os.path.join(app.config['UPLOAD_FOLDER'], 'Ligsff', Ffolder, ffselect)
+            if not (os.path.isdir(ligsff_file) or os.path.isfile(ligsff_file)):
+                fileff = open(ligsff_file, "w")
+                fileff.close()
+
+            ligsww_file = os.path.join(app.config['UPLOAD_FOLDER'], 'Ligsff', Ffolder, ffwater)
+            if not (os.path.isdir(ligsww_file) or os.path.isfile(ligsww_file)):
+                fileww = open(ligsww_file, "w")
+                fileww.close()
 
 			# if valid file(s) submitted, safe ligands
             Lfile = request.files['Lfile']
@@ -653,7 +763,7 @@ def rlupload():
 
             if Ffile and allowed_file(Ffile.filename):
                 Ffilename = secure_filename(Ffile.filename)
-                Ffile.save(os.path.join(app.config['UPLOAD_FOLDER'], 'Ligsff', Ffolder, ffselect, Ffilename))
+                Ffile.save(os.path.join(app.config['UPLOAD_FOLDER'], 'Ligsff', Ffolder, ff_dir, Ffilename))
 
 			# if valid file(s) submitted, safe receptor
             Rfile = request.files['Rfile']
@@ -666,7 +776,7 @@ def rlupload():
                 Rfile.save(os.path.join(app.config['UPLOAD_FOLDER'], 'Receptors', Rfolder, Rfilename))
 
             flash('Successful Receptor, Ligands and Topology files Upload. Click Uploads Menu to add new set')
-            return render_template("upload.html", Lfilelist=Lfile, Ffilelist=Ffile, Rfilelist=Rfile, N=N, F=F, category='success')
+            return render_template("upload.html", Lfilelist=Lfile, Ffilelist=Ffile, Rfilelist=Rfile, ffselect=ffselect, ffwater=ffwater, N=N, F=F, category='success')
 
         elif (N == 4 and F > 1):
             # check if the post request has the file part
@@ -709,7 +819,7 @@ def rlupload():
                 return render_template("upload.html", Prfilelist=Prfiles, N=N, F=F, category='success')
 
     else:
-        return render_template("rlfilesupload.html", N=N, F=F)
+        return render_template("rlfilesupload.html", N=N, F=F, gmxtoplist=gmxtoplist, dictff=dictff)
 
 @app.route('/runscripts', methods=['GET', 'POST'])
 @setup_route
@@ -809,7 +919,7 @@ def runscripts():
                 return render_template("runscripts.html", N=N, selected=selected, gmxtoplist=gmxtoplist, dictff=dictff, category='warning')
 
         elif selected == "RLsingle":
-            gmodsScripts.gmodsRLsingle.RLsingle(appDIR, gmxDIR, fdefaults)
+            gmodsScripts.gmodsRLsingle.RLsingle(appDIR, gmxDIR, fdefaults, dictff)
             print("Performing post job analysis...")
             nspass = 0
             nsfail = 0
@@ -1077,9 +1187,12 @@ def conmds_script():
     # Checking currently available files and folders in the directory
     printNote("Checking the previous files ....")
 
-    if not ('fsolvated.gro' in cwdirall and 'posre.itp' in cwdirall and 'topol.top' in cwdirall):
+    if not ('fsolvated.gro' in cwdirall and 'topol.top' in cwdirall):
         flash('The required compulsory files are missing from the selected directory')
         return render_template("scmdcontinuation.html", N=N)
+
+    if not ('posre.itp' in cwdirall  or 'posre_udp.itp' in cwdirall ):
+        printNote("No restraint file was found. If defined -DP0SRE OR -DPOSRE_UDP in .mdp file, you must include posre.itp or posre_udp.itp file respectively")
 
     if not ('LIGS_at.itp' in cwdirall or 'LIGS_mn.itp' in cwdirall or 'LIGS_mt.itp' in cwdirall):
         printNote("One or more Ligand(s) related files are missing. They may not be needed if all needed parameters are contained in topol.top file. Otherwise, the process may fail")
@@ -1091,7 +1204,7 @@ def conmds_script():
         mdpfilename = ['minzsd.mdp', 'minzcg.mdp', 'equnvt.mdp', 'equnpt.mdp', 'equpmd.mdp', 'pmds.mdp']
         MDPfiles = os.listdir('mdps')
         if len(MDPfiles) == 0:
-            flash('The mdps folder, containing required .mdp files, is empty')
+            flash('The mdps folder, meant to contain required .mdp files, is empty')
             return render_template("scmdcontinuation.html", N=N)
 
         mdpf = 0
@@ -1100,14 +1213,14 @@ def conmds_script():
                 mdpf += 1
 
         if not mdpf == int(len(mdpfilename)):
-            flash('The required mdps file(s) missing or renamed')
+            flash('One or more required mdps file(s) missing or renamed')
             return render_template("scmdcontinuation.html", N=N)
 
         print("found needed .mdp files")
 
     # Checking the accuracy of generated folders and files to determine point of continuation
     printNote("Checking to determine the point of continuation....")
-    
+
     if 'EM' in cwdirall:
         emdir = os.listdir('EM')
         if not 'minzcg.gro' in emdir:

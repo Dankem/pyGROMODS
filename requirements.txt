@@ -5,3 +5,4 @@ inputimeout==1.0.4
 pytimedinput==2.0.1
 waitress==2.1.2
 Werkzeug==2.2.2
+whichcraft==0.6.1

@@ -31,7 +31,7 @@ from gmodsScripts.gmodsTLptopol import TLtopol
 from gmodsScripts.gmodsTScheck import Checkligtop
 from gmodsScripts.gmodsOPLStop import OPLStop, OPLSacpype
 
-def RLsingle(appDIR, gmxDIR, fdefaults):
+def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 	# Set some environment variables
 	print('\n')
 	scriptDIR = appDIR
@@ -58,14 +58,17 @@ def RLsingle(appDIR, gmxDIR, fdefaults):
 		printNote("Your selected default mode for generating input file is Interractive")
 		response = tinput("To revert to Noninteractive mode type YES/y: ", defaults[4], "n")
 		if response.lower() == "yes" or response.lower() == "y":
-			defaults[5] = "B"
+			defaults[0] = "amber99sb"
+			defaults[1] = "tip3p"
+			defaults[5] = "C"
 			printNote("You have changed to pdb2gmx non-interactive mode")
-			print("Your preferred forcefield and water model will be autodetected following your first interactive selection")
 	else:
 		printNote("Your selected default mode for generating input file is Noninterractive")
 		response = tinput("To revert back to Interactive mode type YES/y: ", defaults[4], "n")
 		if response.lower() == "yes" or response.lower() == "y":
-			defaults = ["select", "select", "triclinic", 0.1, 60, "A"]
+			defaults[0] = "select"
+			defaults[1] = "select"
+			defaults[5] = "A"
 		else:
 			defaults[5] = "C"
 
@@ -114,28 +117,37 @@ def RLsingle(appDIR, gmxDIR, fdefaults):
 		else:
 			raise Exception("Sorry, file detected where subdirectory should be, you might need to select different route")
 
-	numff = 0
+	numfc = 0
 	numtp = 0
 	for fileT in TOPfolders:
 		Tsubdir = os.path.join(fPDB, 'Ligsff', fileT)
 		if os.path.isdir(Tsubdir):
 			Tsdirlist = os.listdir(Tsubdir)
-			if not len(Tsdirlist) == 1:
-				raise Exception("Sorry, expecting one file or folder but found", len(Tsdirlist))
-
+			wmodel = []
+			numff = 0
+			numfw = 0
 			for Tfile in Tsdirlist:
-				if not (Tfile == "Amber" or Tfile == "Charmm" or Tfile == "Gromos" or Tfile == "Opls"):
-					raise Exception(Tfile, "could not be identify with any forcefields in gromacs")
-
 				Tdir = os.path.join(fPDB, 'Ligsff', fileT, Tfile)
 				if os.path.isdir(Tdir):
+					if not (Tfile == "Amber" or Tfile == "Charmm" or Tfile == "Gromos" or Tfile == "Opls"):
+						print(f"{Tfile} could not be identify with any forcefields in gromacs")
+						print("The uploaded ligand topology will be ignored for this pair")
+						shutil.rmtree(Tdir)
+						continue
+
 					listTdir = os.listdir(Tdir)
 					if not len(listTdir) == 1:
-						raise Exception("Sorry, expecting one topology file per subdirectory, but found", len(listTdir))
+						print("Expecting one topology file per subdirectory, but found", len(listTdir))
+						print("The uploaded ligand topology will be ignored for this pair")
+						shutil.rmtree(Tdir)
+						continue
 
 					for Topf in listTdir:
 						if not (Path(Topf).suffix == ".itp" or Path(Topf).suffix == ".top"):
-							raise Exception("Sorry, unacceptable topology file format detected. Must be .itp or .top")
+							print("Sorry, unacceptable topology file format detected. Must be .itp or .top")
+							print("The uploaded ligand topology will be ignored for this pair")
+							shutil.rmtree(Tdir)
+							continue
 
 						else:
 							checkindex = indexoflines(os.path.join(fPDB, 'Ligsff', fileT, Tfile, Topf))
@@ -157,21 +169,33 @@ def RLsingle(appDIR, gmxDIR, fdefaults):
 								print("To abort, type YES/y. Otherwise the process will ignore uploaded ligand topology")
 								response = tinput("Response: ", defaults[4], "n")						
 								if not (response.lower() == "yes" or response.lower() == "y"):
-									print(Topf, "topology file will be ignored")
+									print(Topf, "topology file will be ignored for this pair")
+									filecheck.close()
 									shutil.rmtree(Tdir)
-									changedF = open(Tdir, "w")
-									changedF.close()
-									numff += 1
 									continue
 								else:
 									raise Exception("Make necessary corrections and restart")
 							filecheck.close()
-
 					numtp += 1
 				elif os.path.isfile(Tdir):
-					numff += 1
-				else:
-					raise Exception("Empty forcefields subfolder detected")
+    				# Check for forcefield selection and generate water model list
+					if Tfile[0:5].capitalize() == "Amber" or Tfile[0:6].capitalize() == "Charmm" or Tfile[0:6].capitalize() == "Gromos" or Tfile[0:4].capitalize() == "Opls":
+						numff += 1
+						wmodel = dictff[Tfile]
+						print(f"{Tfile} forcefiled detected for this pair of receptor - ligand")
+
+			# Check if water model is present and correspond to selected ff
+			for Wfile in Tsdirlist:
+				if Wfile in wmodel:
+					numfw += 1
+					print(f"{Wfile} water model detected for this pair of receptor - ligand")
+
+			if numff > 1 or numfw > 1:
+				raise Exception("More than one forcefield or water model detected for a pair")
+			elif numff == 0 or numfw == 0:
+				raise Exception("Needed forcefield and/or its corresponding water model is missing for a pair")
+			else:
+				numfc += 1
 		else:
 			raise Exception("Sorry, a file detected where subdirectory should be. Please setroute again and rerun")
 
@@ -179,19 +203,18 @@ def RLsingle(appDIR, gmxDIR, fdefaults):
 		raise Exception("Matching pairs of receptor and ligand could not be detected. Please cross check")
 
 	printNote("You have matching pairs of receptor and ligand. A solvated complex will now be generated for each pair. Are you sure you want to continue?")
-
 	response = tinput("Type YES/y to continue or press ENTER to abort: ", defaults[4], "y")
-	if not(response.lower() == "yes" or response.lower() == "y"):
+	if not (response.lower() == "yes" or response.lower() == "y"):
 		raise Exception("Process Abort!!!. Setroute again and upload required files")
 
 	if not len(LIGfolders) == len(TOPfolders):
 		raise Exception("Matching pairs of ligand and forcefield/ligand topology not detected. Please cross check")
 
-	if numff == len(LIGfolders) and numtp == 0:
+	if numfc == len(LIGfolders) and numtp == 0:
 		TFF = 0
 		printNote("No user supplied topology file(s) was detected for all pairs of Receptor:Ligand")
 
-	elif numtp == len(LIGfolders) and numff == 0:
+	elif numtp == len(LIGfolders) and numfc == len(LIGfolders):
 		TFF = 1
 		printNote("User supplied topology file(s) was detected for all pairs of Receptor:Ligand")
 
@@ -199,7 +222,7 @@ def RLsingle(appDIR, gmxDIR, fdefaults):
 		TFF = 3
 		printNote("One or more user supplied topology file(s) will be ignored")
 		response = tinput("Do you want to proceed anyway? YES/y or NO/n: ", defaults[4], "y")
-		if not(response.lower() == "yes" or response.lower() == "y"):
+		if not (response.lower() == "yes" or response.lower() == "y"):
 			raise Exception("Process Abort!!!. Check your files and rerun")
 	print('\n')
 
@@ -218,8 +241,8 @@ def RLsingle(appDIR, gmxDIR, fdefaults):
 	# Generate unique id number for the project
 	while True:
 		idnumber = random.randint(0, 9)
-		idalpha1 = random.choice(string.ascii_letters)
-		idalpha2 = random.choice(string.ascii_letters)
+		idalpha1 = random.choice(string.ascii_uppercase)
+		idalpha2 = random.choice(string.ascii_uppercase)
 		ID = idalpha1 + str(idnumber) + idalpha2
 		foldername = name + "_" + str(ID)
 		if not os.path.isdir(foldername):
@@ -278,7 +301,20 @@ def RLsingle(appDIR, gmxDIR, fdefaults):
 		for itemf in listligtopdir:
 			if itemf == 'Gromos' or itemf == 'Opls' or itemf == 'Amber' or itemf == 'Charmm':
 				Ligsff = itemf
-			
+				break
+			elif itemf[0:4].capitalize() == "Opls":
+				Ligsff = "Opls"
+				break
+			elif itemf[0:5].capitalize() == "Amber":
+				Ligsff = "Amber"
+				break
+			elif itemf[0:6].capitalize() == "Charmm":
+				Ligsff = "Charmm"
+				break
+			elif itemf[0:6].capitalize() == "Gromos":
+				Ligsff = "Gromos"
+				break
+
 		ligsff_dir = os.path.join(fPDB, 'Ligsff', ligtop, Ligsff)
 		if TFF == 3:
 			if os.path.isdir(ligsff_dir) and len(os.listdir(ligsff_dir)) > 0:
@@ -305,12 +341,40 @@ def RLsingle(appDIR, gmxDIR, fdefaults):
 		printNote("Generating Protein topology and parameter files...")
 		time.sleep(2)
 
-		# Generate Protein topologies and parameter files
+		# Set variables for generating Protein topologies and parameter files
 		Rname = "receptor"
 		drname = Rname + str(RLcount)
 		selff = defaults[0]
 		selwater = defaults[1]
+		newff = ""
+		newWater = ""
 
+		# Get the list of all the avaialble water models
+		fwmodels = []
+		for key in dictff:
+			for fw in dictff[key]:
+				if not fw in fwmodels:
+					fwmodels.append(fw)
+
+		# Get the preselected ff and water model for current pair
+		preff = ""
+		prewater = ""
+		for itemfw in listligtopdir:
+			ffww_dir = os.path.join(ligtopdir, itemfw)
+			if not (os.path.isdir(ffww_dir) or itemfw == Ligsff):
+				if itemfw in dictff and (itemfw[0:4].capitalize() == Ligsff or itemfw[0:5].capitalize() == Ligsff or itemfw[0:6].capitalize() == Ligsff):
+					preff = itemfw
+				elif itemfw in fwmodels:
+					prewater = itemfw
+				else:
+					pass
+
+		# Overide the default generate menu selection if ff and water are not 'select'
+		if not (selff == "select" or selwater == "select"):
+			selff = preff
+			selwater = prewater
+    
+		# Populate the Receptor folder and generate topologies
 		Rdir = os.path.join(fPDB, 'Receptors', RL)
 		Rdirlist = os.listdir(Rdir)
 		for rep in Rdirlist:
@@ -318,7 +382,7 @@ def RLsingle(appDIR, gmxDIR, fdefaults):
 
 		while True:
 			RFtop, RFpdb, RFposre = receptopol(rep, drname, selff, selwater)
-
+				
 			# Let us find out the forcefield choosen by the user for protein topology
 			t = open(RFtop, "r")
 			tread = t.readlines()
@@ -337,67 +401,144 @@ def RLsingle(appDIR, gmxDIR, fdefaults):
 					tf += 1
 			t.close()
 
-			if not (tff[0:4].capitalize() == Ligsff or tff[0:5].capitalize() == Ligsff or tff[0:6].capitalize() == Ligsff):
+			sff_folders = os.listdir(os.path.join(fPDB, 'Ligsff', ligtop))
+			newff = Path(tff).stem
+			newWater = defaults2(RFtop)
+
+			if not newff in sff_folders:
+				if not (tff[0:4].capitalize() == Ligsff or tff[0:5].capitalize() == Ligsff or tff[0:6].capitalize() == Ligsff):
+					print(f"Your forcefiled as contained in receptor topology file is {tff}")
+					print(f"{tff} forcefield does not match the preselected forcefield group: {Ligsff}")
+					printNote("PLEASE NOTE - If you choose to continue: ")
+					print(f"A). Your forcefield group will be changed to match {tff}")
+					print("B). By default, any uploaded ligand topology will be ignored. However, you may choose to keep it")
+
+					printNote("To rerun, Type YES/y. Otherwise press ENTER to continue with current selection")
+					response = tinput("Response: ", defaults[4], "n")
+					if response.lower() == "yes" or response.lower() == "y":
+						selff = "select"
+						selwater = "select"
+						continue
+					else:
+						printNote("You have choosen to continue with current forcefield selection")					
+						if tff[0:4].capitalize() == "Opls":
+							Ligsff = "Opls"
+						elif tff[0:5].capitalize() == "Amber":
+							Ligsff = "Amber"
+						elif tff[0:6].capitalize() == "Gromos":
+							Ligsff = "Gromos"
+						elif tff[0:6].capitalize() == "Charmm":
+							Ligsff = "Charmm"
+						else:
+							print(f"{tff} does not match any known forcefield group. Please rerun")
+							printNote("This may happen if you used a self created or modified forcefield. As such standard naming convention for forcefield should be used. E.g. Amber group of forcefields starts with amber, Gromos with gromos, etc. OR it may happen if generation of topol.top fails.")
+							printWarning("It is strongly recommended to abort the process, check uploaded file for correctness, and try again. Check README.md file for some troubleshooting tips")
+							printNote("To abort, Type YES/y. To continue anyway, press ENTER")
+							response = tinput("Response: ", defaults[4], "n")
+							if response.lower() == "yes" or response.lower() == "y":
+								raise Exception("Process aborted. Make necessary corrections and Rerun setup")
+							else:
+								break
+
+						for sff in sff_folders:
+							if sff == 'Amber' or sff == 'Charmm' or sff == 'Gromos' or sff == 'Opls':
+								os.rename(os.path.join(fPDB, 'Ligsff', ligtop, sff), os.path.join(fPDB, 'Ligsff', ligtop, Ligsff))
+								print(f"Your selected forcefield group has been changed to {Ligsff}")
+
+							elif sff in dictff and sff == preff:
+								os.rename(os.path.join(fPDB, 'Ligsff', ligtop, sff), os.path.join(fPDB, 'Ligsff', ligtop, newff))
+								print(f"Your selected forcefield has been changed to {tff}")
+
+							elif sff == prewater and newWater in dictff[Path(tff).stem]:
+								os.rename(os.path.join(fPDB, 'Ligsff', ligtop, sff), os.path.join(fPDB, 'Ligsff', ligtop, newWater))
+								print(f"Your selected water model has been changed to {newWater}")
+
+							else:
+								pass
+
+						ligsff_dir = os.path.join(fPDB, 'Ligsff', ligtop, Ligsff)
+						if TFF == 1:
+							print(f"Subdirectory for uploaded ligand topology is now: {ligsff_dir}")
+							printNote("To use with uploaded ligand topology, type YES/y")
+							printNote("To use without uploaded ligand topology, type NO/n")
+							response = tinput("Response: ", defaults[4], "y")
+							if not (response.lower() == "yes" or response.lower() == "y"):
+								TFF = 0
+								break
+							else:
+								TFF = 1
+								break
+						else:
+							break
+
+				else:
+					print(f"Your forcefiled as contained in receptor topology file is {tff}")
+					print(f"{tff} forcefield match the preselected forcefield group: {Ligsff}")
+					print(f"However, {tff} forcefield is different from the preselected forcefield")
+					print("By default, any uploaded ligand topology will be used. However, you may choose not to")
+
+					printNote("To rerun, Type YES/y. Otherwise press ENTER to continue with current selection")
+					response = tinput("Response: ", defaults[4], "n")
+					if response.lower() == "yes" or response.lower() == "y":
+						selff = "select"
+						selwater = "select"
+						continue
+					else:
+						printNote("You have choosen to continue with current forcefield selection")					
+
+						for sff in sff_folders:
+							if sff in dictff and sff == preff:
+								os.rename(os.path.join(fPDB, 'Ligsff', ligtop, sff), os.path.join(fPDB, 'Ligsff', ligtop, newff))
+								print(f"Your selected forcefield has been changed to {tff}")
+
+							elif sff == prewater and newWater in dictff[Path(tff).stem]:
+								os.rename(os.path.join(fPDB, 'Ligsff', ligtop, sff), os.path.join(fPDB, 'Ligsff', ligtop, newWater))
+								print(f"Your selected water model has been changed to {newWater}")
+
+							else:
+								pass
+
+						ligsff_dir = os.path.join(fPDB, 'Ligsff', ligtop, Ligsff)
+						if TFF == 1:
+							print(f"Subdirectory for uploaded ligand topology is: {ligsff_dir}")
+							printNote("To use with uploaded ligand topology, type YES/y")
+							printNote("To use without uploaded ligand topology, type NO/n")
+							response = tinput("Response: ", defaults[4], "y")
+							if not (response.lower() == "yes" or response.lower() == "y"):
+								TFF = 0
+								break
+							else:
+								TFF = 1
+								break
+						else:
+							break
+
+			elif not newWater in sff_folders:
 				print(f"Your forcefiled as contained in receptor topology file is {tff}")
-				print(f"{tff} forcefield does not match the preselected forcefield group: {Ligsff}")
-				print("It is advisable to rerun and choose forcefield that match preselected")
-				printNote("PLEASE NOTE - If you choose to continue: ")
-				print(f"A). Your forcefield group will be changed to match {tff}")
-				print("B). By default, any uploaded ligand topology will be ignored")
-				print("C). However, if your uploaded ligand topology(ies) is/are compatible with your current forcefield selection, you may choose to keep it, when provied the options below")
+				print(f"Your water model as contained in receptor topology file is {newWater}")
+				print(f"The detected {newWater} does not match the preselected water model: {selwater}")
 
 				printNote("To rerun, Type YES/y. Otherwise press ENTER to continue with current selection")
-				response = tinput("Response: ", 30, "n")
+				response = tinput("Response: ", defaults[4], "n")
 				if response.lower() == "yes" or response.lower() == "y":
 					selff = "select"
 					selwater = "select"
 					continue
 				else:
-					printNote("You have choosen to continue with current forcefield selection")					
-					if tff[0:4].capitalize() == "Opls":
-						Ligsff = "Opls"
-					elif tff[0:5].capitalize() == "Amber":
-						Ligsff = "Amber"
-					elif tff[0:6].capitalize() == "Gromos":
-						Ligsff = "Gromos"
-					elif tff[0:6].capitalize() == "Charmm":
-						Ligsff = "Charmm"
-					else:
-						print(f"{tff} does not match any known forcefield group. Please rerun")
-						printNote("This may happen if you used a self created or modified forcefield. As such standard naming convention for forcefield should be used. E.g. Amber group of forcefields starts with amber, Gromos with gromos, etc. OR it may happen if generation of topol.top fails.")
-						printWarning("It is strongly recommended to abort the process, check uploaded file for correctness, and try again. Check README.md file for some troubleshooting tips")
-						printNote("To abort, Type YES/y. To continue anyway, press ENTER")
-						response = tinput("Response: ", 30, "n")
-						if response.lower() == "yes" or response.lower() == "y":
-							raise Exception("Process aborted. Make necessary corrections and Rerun setup")
-						else:
-							break
+					printNote("You have choosen to continue with current water model")					
 
-					sff_folders = os.listdir(os.path.join(fPDB, 'Ligsff', ligtop))
 					for sff in sff_folders:
-						if not (sff == 'Amber' or sff == 'Charmm' or sff == 'Gromos' or sff == 'Opls'):
-							raise Exception("No folder or file matching forcefield that can be renamed was found")
-						else:
-							os.rename(os.path.join(fPDB, 'Ligsff', ligtop, sff), os.path.join(fPDB, 'Ligsff', ligtop, Ligsff))
-
-					print(f"Your selected forcefield group has been changed to {Ligsff}")
-					ligsff_dir = os.path.join(fPDB, 'Ligsff', ligtop, Ligsff)
-
-					if TFF == 1:
-						print(f"Subdirectory for uploaded ligand topology is now: {ligsff_dir}")
-						printNote("To use with uploaded ligand topology, type YES/y")
-						printNote("To use without uploaded ligand topology, type NO/n")
-						response = tinput("Response: ", defaults[4], "y")
-						if not (response.lower() == "yes" or response.lower() == "y"):
-							TFF = 0
+						if sff == prewater and newWater in dictff[Path(tff).stem]:
+							os.rename(os.path.join(fPDB, 'Ligsff', ligtop, sff), os.path.join(fPDB, 'Ligsff', ligtop, newWater))
+							print(f"Your selected water model has been changed to {newWater}")
 							break
 						else:
-							TFF = 1
-							break
-					else:
-						break
+							pass
+					break
+
 			else:
 				print(f"Your forcefiled as contained in topol.top file is {tff}")
+				print(f"Your water model as contained in topol.top file is {newWater}")
 				break
 
 		try:
@@ -408,31 +549,8 @@ def RLsingle(appDIR, gmxDIR, fdefaults):
 			printWarning(e)
 			pass
 
-		if defaults[5] == "B":
-			if Path(tff).suffix == ".ff":
-				defaults[0] = Path(tff).stem
-			else:
-				defaults[0] = tff
-			
-			defaults[1] = defaults2(RFtop)
-			if defaults[1] == "none":
-				print("No water model was detected for your system")
-			else:
-				print(f"Your water model as contained in topol.top file is {defaults[1]}")
-			
-			printNote("Your selected default values are as follows: ")
-			print(f"		Default forcefield: {defaults[0]}")
-			print(f"		Default water model: {defaults[1]}")
-			print(f"		Default editconf -bt: {defaults[2]}")
-			print(f"		Default editconf -d: {defaults[3]}")
-			print(f"		Default input timeout: {defaults[4]}")
-			print("		Default mode: non-interactive")
-
-			# We will now lock these defaults by changing mode to C
-			defaults[5] = "C"
-			time.sleep(10)
-
 		os.chdir('../')
+		time.sleep(5)
 
 		# Determine and choose preferred route for platform generated opls ligand topology
 		opls_route = 0
@@ -920,7 +1038,7 @@ def RLsingle(appDIR, gmxDIR, fdefaults):
 				printNote("Auto-generated OPLS compatible ligand topology will be used, but may fail") 
 	
 		# Time to prepared solvated complex
-		selwater = defaults[1]
+		selwater = newWater
 		selbt = defaults[2]
 		seld = defaults[3]
 

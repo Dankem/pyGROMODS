@@ -127,6 +127,7 @@ def gmxtop():
 def ligtopol(ligand, name):
 	""" Generating parameters for ligands """
 	# Setup some variables
+	print('\n')
 	liggro = name + ".gro"
 	ligtop = name + ".top"
 	ligmol = name + ".mol2"
@@ -227,8 +228,13 @@ def receptopol(receptor, name, selff, selwater):
 		subprocess.run(rcmd, check=True, stderr=subprocess.STDOUT, text=True)
 	except subprocess.SubprocessError as e:
 		print(e)
-		print(receptor, "preparation failed with above error. The process can't continue. Make corrections and rerun")
-		raise Exception("Process Aborted. Make necessary corrections and restart")
+		print(f"{receptor}, preparation failed with above error")
+		response = input("To proceed interactively, type YES/y, otherwise, press ENTER to abort: ")
+		if not (response.lower() == "yes" or response.lower() == "y"):
+			raise Exception("Process Aborted. Make necessary corrections and restart")
+		else:
+			rcmd = ['gmx', 'pdb2gmx', '-f', receptor, '-p', rectop, '-o', recpdb, '-ff', 'select', '-water', 'select', '-ignh']
+			subprocess.run(rcmd, check=True, stderr=subprocess.STDOUT, text=True)
 
 	return rectop, recpdb, 'posre.itp'
 

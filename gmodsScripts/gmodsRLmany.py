@@ -69,7 +69,9 @@ def RLmany(appDIR, gmxDIR, fdefaults):
 		printNote("Your selected default mode for generating input file is Noninterractive")
 		response = tinput("To revert back to Interactive mode type YES/y: ", defaults[4], "n")
 		if response.lower() == "yes" or response.lower() == "y":
-			defaults = ["select", "select", "triclinic", 0.1, 60, "A"]
+			defaults[0] = "select"
+			defaults[1] = "select"
+			defaults[5] = "A"
 		else:
 			defaults[5] = "C"
 
@@ -212,8 +214,8 @@ def RLmany(appDIR, gmxDIR, fdefaults):
 	# Generate unique id number for the project
 	while True:
 		idnumber = random.randint(0, 9)
-		idalpha1 = random.choice(string.ascii_letters)
-		idalpha2 = random.choice(string.ascii_letters)
+		idalpha1 = random.choice(string.ascii_uppercase)
+		idalpha2 = random.choice(string.ascii_uppercase)
 		ID = idalpha1 + str(idnumber) + idalpha2
 		foldername = name + "_" + str(ID)
 		if not os.path.isdir(foldername):
@@ -313,7 +315,7 @@ def RLmany(appDIR, gmxDIR, fdefaults):
 				print("C). However, you may choose to keep your uploaded ligand topology(ies) if compatible with your current forcefield selection")
 
 				printNote("To rerun, Type YES/y. To continue with current selection press ENTER")
-				response = tinput("Response: ", 30, "n")
+				response = tinput("Response: ", defaults[4], "n")
 				if response.lower() == "yes" or response.lower() == "y":
 					selff = "select"
 					selwater = "select"
@@ -331,7 +333,12 @@ def RLmany(appDIR, gmxDIR, fdefaults):
 						print(f"{tff} does not match any known forcefield group. Please rerun")
 						print("This may happen if you used a self created or modified forcefield. As such, standard naming convention for forcefield should be used. E.g. Amber group of forcefields starts with amber, Gromos with gromos, etc. OR it may happen if generation of topol.top fails.")
 						printNote("It is strongly recommended to check the uploaded file for correctness, and try again. Check README.md file for some troubleshooting tips")
-						raise Exception("Process aborted. Make necessary corrections and Rerun setup")
+						printNote("To abort, Type YES/y. To continue anyway, press ENTER")
+						response = tinput("Response: ", defaults[4], "n")
+						if response.lower() == "yes" or response.lower() == "y":
+							raise Exception("Process aborted. Make necessary corrections and Rerun setup")
+						else:
+							break
 
 					Ufolders = os.listdir(fPDB)
 					if not ('Amber' in Ufolders or 'Charmm' in Ufolders or 'Gromos' in Ufolders or 'Opls' in Ufolders):
@@ -389,8 +396,15 @@ def RLmany(appDIR, gmxDIR, fdefaults):
 
 			# We will now lock these defaults by changing mode to C
 			defaults[5] = "C"
+		else:
+			defaults[1] = defaults2(RFtop)
+			if defaults[1] == "none":
+				print("No water model was detected for your system")
+			else:
+				print(f"Your water model as contained in topol.top file is {defaults[1]}")
 
 		os.chdir('../')
+		time.sleep(5)
 
 		# Determine and choose preferred route for platform generated opls ligand topology
 		opls_route = 0

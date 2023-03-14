@@ -32,7 +32,6 @@ def checktopsimilarities(mtsavedir):
 	print("2.	Any other files with similar molecule types identity will be skipped.")
 	print("3.	Crosscheck to decide on wither or not you want to include the file(s).")
 	print("4.	To include, ensure each file has unique molecule name and rerun")
-	print('\n')
 
 	print("Similarity checks in progress ...")
 	time.sleep(10)
@@ -146,13 +145,11 @@ def checktopsimilarities(mtsavedir):
 		ln += 1
 
 	file_mn.close()
-	print('\n')
 	return 'LIGS_mn.itp'
 
 
 def Checkligtop(ligtop, ff):
 	# Set some needed variables
-	print('\n')
 	tlpindex = indexoflines(ligtop)
 	atlp = int(tlpindex['atomtypes'])
 	mtlp = int(tlpindex['moleculetype'])

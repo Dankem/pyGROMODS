@@ -136,8 +136,8 @@ def SCmds(appDIR, gmxDIR):
 
     while True:
         idnumber = random.randint(0, 9)
-        idalpha1 = random.choice(string.ascii_letters)
-        idalpha2 = random.choice(string.ascii_letters)
+        idalpha1 = random.choice(string.ascii_lowercase)
+        idalpha2 = random.choice(string.ascii_lowercase)
         ID = str(idnumber) + idalpha1 + idalpha2
         newWDIR = 'mdsgmx_' + ID
         if os.path.isdir(newWDIR):
