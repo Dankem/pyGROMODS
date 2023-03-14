@@ -1,5 +1,5 @@
 # pyGROMODS
-#### Video Demo:  https://youtu.be/Pt0WMhvGkv8
+
 #### Description:
 
 ## Requirements: 	
