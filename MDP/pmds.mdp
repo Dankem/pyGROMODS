@@ -1,0 +1,55 @@
+title                    = Production Simulation
+
+; Define can be used to control processes
+define          = -DPOSRES
+
+; RUN CONTROL PARAMETERS
+integrator               = md
+tinit                    = 0       ; Starting time
+dt                       = 0.002   ; 2 femtosecond time step for integration
+nsteps                   = 5000        ; Make it 4 ns
+
+; OUTPUT CONTROL OPTIONS
+nstxout                  = 1000  ; Writing full precision coordinates every 50 ps
+nstvout                  = 1000  ; Writing velocities every 50 ps
+nstfout                  = 1000  ; Writing forces every 50 ps
+nstlog                   = 1000  ; Writing to the log file every step 50 ps
+nstenergy                = 1000  ; Writing out energy information every step 50 ps
+nstxtcout                = 1000  ; Writing coordinates every 50 ps
+
+; NEIGHBORSEARCHING PARAMETERS
+nstlist                  = 5
+ns-type                  = Grid
+pbc                      = xyz
+rlist                    = 0.9
+
+; OPTIONS FOR ELECTROSTATICS AND VDW
+coulombtype              = pme
+rcoulomb                 = 1.4
+epsilon_rf               = 78
+epsilon_r                = 1
+vdw-type                 = Cut-off
+rvdw                     = 1.4
+cutoff-scheme            = verlet
+verlet-buffer-tolerance  = 0.00005
+
+; Temperature coupling
+Tcoupl                   = V-rescale
+tc-grps                  = System
+tau_t                    = 0.1
+ref_t                    = 300
+
+; Pressure coupling
+Pcoupl                   = no
+
+; GENERATE VELOCITIES FOR STARTUP RUN
+gen_vel                  = no
+
+; OPTIONS FOR BONDS
+constraints              = h-bonds
+constraint-algorithm     = Lincs
+unconstrained-start      = yes
+lincs-order              = 4
+lincs-iter               = 1
+lincs-warnangle          = 30
+

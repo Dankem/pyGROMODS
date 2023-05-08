@@ -1,0 +1,56 @@
+title                    = NPT simulation (constant number, pressure and temperature)
+
+; Define can be used to control processes
+define          = -DPOSRES
+
+; RUN CONTROL PARAMETERS
+integrator               = md
+dt                       = 0.002
+nsteps                   = 5000
+
+; OUTPUT CONTROL OPTIONS
+nstxout                  = 0
+nstvout                  = 0
+nstfout                  = 0
+nstlog                   = 1
+nstenergy                = 1
+nstxtcout                = 0
+xtc_precision            = 1000
+xtc-grps                 = System
+
+; NEIGHBORSEARCHING PARAMETERS
+nstlist                  = 5
+ns-type                  = Grid
+pbc                      = xyz
+rlist                    = 0.9
+
+; OPTIONS FOR ELECTROSTATICS AND VDW
+coulombtype              = pme
+rcoulomb                 = 1.4
+epsilon_rf               = 78
+vdw-type                 = Cut-off
+rvdw                     = 1.4
+cutoff-scheme            = verlet
+
+; Temperature coupling
+Tcoupl                   = V-rescale
+tc-grps                  = System
+tau_t                    = 0.1
+ref_t                    = 300
+
+; Pressure coupling
+Pcoupl                   = Berendsen
+Pcoupltype               = Isotropic
+tau_p                    = 1.0
+compressibility          = 4.5e-5
+ref_p                    = 1.0
+refcoord_scaling         = com
+
+; GENERATE VELOCITIES FOR STARTUP RUN
+gen_vel                  = yes    ; Assign velocities to particles by taking them randomly from a Maxwell distribution
+gen_temp                 = 300.0  ; Temperature to generate corresponding Maxwell distribution
+gen_seed                 = 9999   ; Seed for (semi) random number generation.
+
+; OPTIONS FOR BONDS    
+constraints              = h-bonds
+
