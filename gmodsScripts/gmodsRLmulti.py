@@ -458,13 +458,24 @@ def RLmulti(appDIR, gmxDIR, fdefaults):
 		LFgro, LFtop = ligtopol(lig, Lname)
 
 		# Identify the pdb file to use subsequently, depending on uploaded ligand format
+		print("Generating optimized ligand structure...")
+		ligE = open('ligcleanerror.txt', 'a')
 		nligname = Lname + "up.pdb"
 		if Path(lig).suffix == ".pdb":
-			shutil.copy(lig, nligname)
+			try:
+				subprocess.run(['gmx', 'editconf', '-f', lig, '-o', nligname], check=True, stderr=subprocess.STDOUT, stdout=ligE, text=True)
+			except subprocess.SubprocessError as e:
+				printNote("Trying again...")
+				shutil.copy(lig, nligname)
 
 		elif Path(lig).suffix == ".mol2":
-			ligtopol_pdb = Lname + "new" + ".pdb"
-			shutil.copy(ligtopol_pdb, nligname)
+			ligtopol_pdb = name + "new" + ".pdb"
+			try:
+				subprocess.run(['gmx', 'editconf', '-f', ligtopol_pdb, '-o', nligname], check=True, stderr=subprocess.STDOUT, stdout=ligE, text=True)
+			except subprocess.SubprocessError as e:
+				printNote("Trying again...")
+				shutil.copy(ligtopol_pdb, nligname)
+		ligE.close()
 
 		# Prepare atomtypes and moleculetype files for user supplied topology files
 		if TFF > 0:

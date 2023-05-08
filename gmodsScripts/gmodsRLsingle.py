@@ -612,14 +612,28 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 
 		LFgro, LFtop = ligtopol(lig, dlname)
 
+		# Identify the pdb file to use subsequently, depending on uploaded ligand format
+		print("Generating optimized ligand structure...")
+		ligE = open('ligcleanerror.txt', 'a')
+
 		nligname = dlname + "up.pdb"
 		if Path(lig).suffix == ".pdb":
-			shutil.copy(lig, nligname)
+			try:
+				subprocess.run(['gmx', 'editconf', '-f', lig, '-o', nligname], check=True, stderr=subprocess.STDOUT, stdout=ligE, text=True)
+			except subprocess.SubprocessError as e:
+				printNote("Trying again...")
+				shutil.copy(lig, nligname)
 
 		elif Path(lig).suffix == ".mol2":
-			ligtopol_pdb = dlname + "new" + ".pdb"
-			shutil.copy(ligtopol_pdb, nligname)
+			ligtopol_pdb = name + "new" + ".pdb"
+			try:
+				subprocess.run(['gmx', 'editconf', '-f', ligtopol_pdb, '-o', nligname], check=True, stderr=subprocess.STDOUT, stdout=ligE, text=True)
+			except subprocess.SubprocessError as e:
+				printNote("Trying again...")
+				shutil.copy(ligtopol_pdb, nligname)
+		ligE.close()
 
+		# Prepare molecule number files
 		ligsmnfile = dlname + "_mn.itp"
 		file_mn = open(ligsmnfile, "+a")
 		LFtopfile = open(LFtop, "r")
@@ -770,7 +784,7 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 
 		nametop = " "
 		if not ligcheck == oplstop:
-			nametop = "ck" +dlname + ".top"
+			nametop = "ck" + dlname + ".top"
 			os.rename(ligcheck, nametop)
 		else:
 			nametop = oplstop

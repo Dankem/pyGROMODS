@@ -105,13 +105,13 @@
 	<form onsubmit="submitDisabled()" class="form-group" action="/runscripts" method="post">
 		
 		<label for="timeout">Timeout (seconds)</label><br>
-		<input id="timeout" type="number" name="timeout" class="form-control" min="1" max="600" value="60" style="width: 25%;" aria-describedby="userTHelp"/>
-		<div id="userTHelp" class="form-text">Maximum time to wait for input request. Default is 60 (Noninteractive: 5 and below)</div>
+		<input id="timeout" type="number" name="timeout" class="form-control" min="1" max="600" value="300" style="width: 25%;" aria-describedby="userTHelp"/>
+		<div id="userTHelp" class="form-text">Maximum time to wait for input request. Default is 300 (Noninteractive: 5 and below)</div>
 		<br>
 
 		<label for="changed">Prefeered box size</label><br>
-		<input id="changed" type="number" name="changed" class="form-control" min="0.001" max="10" step="0.001" value="0.100" style="width: 25%;" aria-describedby="userDHelp"/> 
-		<div id="userDHelp" class="form-text">Preferred value for editconf -d option. Default is 0.10</div>
+		<input id="changed" type="number" name="changed" class="form-control" min="0.001" max="10" step="0.001" value="0.150" style="width: 25%;" aria-describedby="userDHelp"/> 
+		<div id="userDHelp" class="form-text">Preferred value for editconf -d option. Default is 0.15</div>
 		<br>
 
 		<label for="changebt">Preferred box type</label><br>

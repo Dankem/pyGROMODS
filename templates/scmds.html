@@ -26,18 +26,22 @@
 {% block main %}
   <h1>Upload Needed Files For MDS</h1>
   <p>Please browse to any of the gmxmds files earlier generated and select all relevant files for MD simulations</p>
-  <p>Please Note: The "fsolvated.gro" is the final solvated structure with NA and CL added to neutralze and maintain the system at 0.15M. This will be used.</p>
-  <p>If, however, you have choosen to solvate manually, rename your final solvated.gro to fsolvated.gro and replace topol.top with your updated one</p><br>
+  <p>However, if solvation was done manually, rename your final solvated.gro to fsolvated.gro and replace topol.top with your updated one</p>
   <p><strong>To setup manually, please read instructions in README.md file, and upload the relevant files below</strong></p>
 
   <div id="gap">
     <p> </p>
   </div>
 
-  <h2> It's time to upload the necessary files</h2><br>
+  <h2>It's time to upload the necessary files</h2>
 
   <form onsubmit="submitDisabled()"class="form-group" action="/scmds" method=post enctype=multipart/form-data>
-    Multiple files from gmxmds directory earlier generated can be uploaded
+    <strong><i>FOR GMXMDS Files:</i></strong><br>
+    Multiple files from gmxmds directory earlier generated can be uploaded<br>
+    But, if uploading files generated outside this platform, please note:<br>
+        *** topol.top file must be present and named as such<br>
+        *** Final solvated structure must be renamed "fsolvated.gro"<br>
+        *** Include any other files defined in topol.top file (e.g. ligand topology, restraint file, etc)<br><br>
     <label for="mdsfiles">GMXMDS File(s):</label><br>
     <input type="file" name="mdsfiles[]" class="form-control" multiple="true" autocomplete="off" required><br><br>
 	

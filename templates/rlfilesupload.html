@@ -34,7 +34,7 @@
 		}
 
 		function submitDisabled() {
-			d = document.getElementById("button");
+			d = document.getElementById("dunsin");
 			if (d.disabled === false) {
 				d.disabled = true;
 			}
@@ -61,7 +61,7 @@
 			<label for="Rfile">Receptor File:</label><br>
 			<input type="file" class="form-control" name="Rfile"><br><br>
 
-			<input id="button" type=submit value=Upload>
+			<input id="dunsin" type=submit value=Upload>
 
 		{% elif (N == 1 and F == 1) or (N == 2 and F == 1) %}
 			* One or more ligand structure and topology files can be uploaded per receptor<br>
@@ -78,7 +78,7 @@
 			<label for="Rfile">Receptor File:</label><br>
 			<input type="file" class="form-control" name="Rfile"><br><br>
 
-			<input id="button" type=submit value=Upload>
+			<input id="dunsin" type=submit value=Upload>
 
 		{% elif N == 3 and F == 0 %}
 			* One or more Matching pairs of receptor and ligand (at a time) can be uploaded<br>
@@ -106,7 +106,7 @@
 			<label for="Rfile">Receptor File:</label><br>
 			<input type="file" class="form-control" name="Rfile"><br><br>
 
-			<input id="button" type="submit" value="Upload">
+			<input id="dunsin" type="submit" value="Upload">
 
 		{% elif N == 3 and F == 1 %}
 			* One or more Matching pairs of receptor and ligand with ligand topology can be uploaded<br>
@@ -139,7 +139,7 @@
 			<label for="Rfile">Receptor File:</label><br>
 			<input type="file" class="form-control" name="Rfile"><br><br>
 
-			<input id="button" type="submit" value="Upload">
+			<input id="dunsin" type="submit" value="Upload">
 
 		{% elif N == 4 and F == 2 %}
 			* One or multipe Peptides sequence files in .in format can be uploaded once<br>
@@ -147,7 +147,7 @@
 			<label for="Ptfile">Peptide(s) File(s):</label><br>
 			<input type="file" class="form-control" name="Ptfiles[]" multiple="true" autocomplete="off" required><br><br>
 
-			<input id="button" type="submit" value="Upload">
+			<input id="dunsin" type="submit" value="Upload">
 
 		{% elif N == 4 and F == 3 %}
 			* One or multipe Proteins files in .pdb format can be uploaded once<br>
@@ -156,7 +156,7 @@
 			<label for="Prfile">Protein(s) File(s):</label><br>
 			<input type="file" class="form-control" name="Prfiles[]" multiple="true" autocomplete="off" required><br><br>
 
-			<input id="button" type="submit" value="Upload">
+			<input id="dunsin" type="submit" value="Upload">
 
 		{% endif %}
    </form>

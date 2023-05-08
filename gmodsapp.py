@@ -115,13 +115,13 @@ plat4m = platform.platform().split('-')
 if "WSL2" in plat4m or "wsl2" in plat4m:
     try:
         from gmodsScripts.flaskwebgui.flaskwebgui037 import FlaskUI
-        ui = FlaskUI(app, width=825, height=650, port=gmodsport, close_server_on_exit=False) # for v037
+        ui = FlaskUI(app, width=825, height=650, port=gmodsport) # for v037
     except Exception as e1:
         print(f"'flaskwebgui' failed with error: {e1}")
         print("Trying again ...")
         try:
-            from gmodsScripts.flaskwebgui.flaskwebgui103 import FlaskUI
-            ui = FlaskUI(app=app, width=825, height=650, port=gmodsport, server="flask") # for v103
+            from gmodsScripts.flaskwebgui.flaskwebgui106 import FlaskUI
+            ui = FlaskUI(app=app, width=825, height=650, port=gmodsport, server="flask") # for v106
         except Exception as e2:
             printWarning(f"'flaskwebgui' failed with error: {e2}")
             print("Please check and correct the errors")
@@ -129,14 +129,14 @@ if "WSL2" in plat4m or "wsl2" in plat4m:
             ui = app
 else:
     try:
-        from gmodsScripts.flaskwebgui.flaskwebgui103 import FlaskUI
-        ui = FlaskUI(app=app, width=825, height=650, port=gmodsport, server="flask") # for v103
+        from gmodsScripts.flaskwebgui.flaskwebgui106 import FlaskUI
+        ui = FlaskUI(app=app, width=825, height=650, port=gmodsport, server="flask") # for v106
     except Exception as e1:
         print(f"'flaskwebgui' failed with error: {e1}")
         print("Trying again ...")
         try:
             from gmodsScripts.flaskwebgui.flaskwebgui037 import FlaskUI
-            ui = FlaskUI(app, width=825, height=650, port=gmodsport, close_server_on_exit=False) # for v037
+            ui = FlaskUI(app, width=825, height=650, port=gmodsport) # for v037
         except Exception as e2:
             printWarning(f"'flaskwebgui' failed with error: {e2}")
             print("Check and correct the errors")

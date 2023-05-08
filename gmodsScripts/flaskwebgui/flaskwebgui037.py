@@ -131,7 +131,7 @@ class FlaskUI:
         socketio=None,
         on_exit=None,
         idle_interval=5,
-        close_server_on_exit=True
+        close_server_on_exit=False
         ) -> None:
 
         self.app = app

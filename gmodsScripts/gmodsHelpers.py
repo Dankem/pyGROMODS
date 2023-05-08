@@ -391,7 +391,7 @@ def pdbcatogro():
 	R = open("nReceptor.pdb", "r")
 	Rlines = R.readlines()
 	for rline in Rlines:
-		if not (rline.split()[0] == "TER" or rline.split()[0] == "END" or rline.split()[0] == "ENDMDL"):
+		if not (rline.split()[0] == "TER" or rline.split()[0] == "END" or rline.split()[0] == "ENDMDL" or rline.split()[0] == "CONECT" or rline.split()[0] == "MASTER"):
 			complex.write(rline)
 	R.close()
 
@@ -404,11 +404,14 @@ def pdbcatogro():
 			L = open(Lp, "r")
 			Llines = L.readlines()
 			for Lline in Llines:
-				if not (Lline.split()[0] == "TER" or Lline.split()[0] == "END" or Lline.split()[0] == "ENDMDL"):
+				if Lline.split()[0] == "HETATM" or Lline.split()[0] == "HET" or Lline.split()[0][:3] == "HET":
 					complex.write(Lline)
+				elif Lline.split()[0] == "ATOM":
+					replace = Lline.replace(Lline.split()[0], "HETATM", 1)
+					complex.write(replace)
 			L.close()
 
-	# Append the end of pdb characters - TER and END
+	# Append the end of pdb characters - MASTER, TER and END
 	complex.write('TER')
 	complex.write('\n')
 	complex.write('END')

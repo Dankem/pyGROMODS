@@ -1,5 +1,5 @@
 # pyGROMODS
-#### Video Demo:  https://youtu.be/Pt0WMhvGkv8
+#### Video Demo:  https://youtu.be/I4OKc6uVx1M
 #### Description:
 
 ## Requirements: 	
@@ -53,7 +53,7 @@
 ## INSTALLATION:
 	pyGROMODS can be obtained by direct download from https://github.com/Dankem/pyGROMODS or by using Git or checkout with SVN. The downloaded pyGROMODS must be installed in a location where the user has write access. This is becuase folders and files will be generated in the process. In linux environment, you can set the PATH to the pyGROMODS in the .bashrc file. Setting the PATH is the recommended approach for installation. It allows user to have working directory in any other place on the system without tampering with the scripts. After setting the PATH and source the .bashrc file, just type gmodsapp.py on the terminal to launch the platform. However, if PATH can not be set, you can navigate to the directory containing pyGROMODS folder. To launch the application, type python pyGROMODS/gmodsapp.py or python3 pyGROMODS/gmodsapp.py. You will be required to choose a working directory before the platform GUI interface will launch. DON'T CHOOSE INSTALLATION PATH AS YOUR WORKING DIRECTORY.All folders and file will be generated and saved in the working directory. 
 
-	Also, since this package is just a gui interface for setting up and running molecular dynamic simulation with gromacs, all dependent programs (gromacs, ambertools antechamber, acpype, etc) are correctly installed and their executables can be found in the path. This package works was tested with various versions of gromacs, ambertools and acpype (from 2014 to 2022). Therefore, it is advisable to install the latest version of these program for use with pyGROMODS.
+	Also, since this package is just a gui interface for setting up and running molecular dynamic simulation with gromacs, all dependent programs (gromacs, ambertools antechamber, acpype, etc) must be correctly installed and their executables should easily be found in the path. This package has been well tested with various versions of gromacs, ambertools and acpype (from 2014 to 2022). Therefore, it is advisable to install the latest version of these program for use with pyGROMODS.
 
 
 ## USAGE INSTRUCTIONS:
@@ -117,7 +117,7 @@
 
 	***To Perform Molecular Dynamic Simulation:***
 		1). Click on MDS and select FRESH or CONTINUATION. FRESH will required upload of necessary files as indicated. All needed files for MDS are saved in gmxmds folder during preparatory stage above. The "samples" subfolder inside the working directory also contains samples of mdp files for you to edit and upload. Alternatively, if you generated your MDS input files from another source, please follow Manual setup approach below.
-		2). Make sure you have your .mdp (molecular dynamic parameter) files ready. Files must be uploaded for minimization, equilibration and production runs. While user may not be interested in all the stages defined for mdp, none can be left empty. As such, upload mdp files most suitable for each defined stages. For instance, user can upload same minimization methods, steepest descent or conjugate gradient or different one, for both, as long as such methods are compatible with gromacs. This also applies to equilibration.
+		2). Make sure you have your .mdp (molecular dynamic parameter) files ready. Files must be uploaded for minimization, NVT and NPT equilibrilations, equilibration MD and production MD runs. While user may not be interested in all the stages defined for mdp, none can be left empty. As such, upload mdp files most suitable for each defined stages. For instance, user can upload same minimization methods, steepest descent or conjugate gradient or different one, for both, as long as such methods are compatible with gromacs. This also applies to NVT and NPT.
 		3). Click upload after selecting the files, you will be redirected to MDSrun page where you can choose to activate opencl. Activating openCL is only neccessary if you need it or you are having problem compiling openCL headers.
 		4). Click MDSrun and MDS simulation will start. Folders and files will be generated
 		5). NOTE: MDS menu is available at startup of the GUI. You can use it for already generated complex.
@@ -139,11 +139,10 @@
 		2). Create 'MDSHOME' folder inside the working directory, if not present
 		3). Backup any former 'mdsgmx' folder inside MDSHOME if not having unique ID attached
 		4). Create a new 'gmxmds' folder anywhere and populate with the following files labelled as such:
-				a. topol.top
-				b. LIGS_at.itp --- for Ligand atomtypes, if needed
-				c. LIGS_mt.itp --- for Ligand moleculetypes, if needed
-				d. posre.itp and/or posre_udp.itp --- for restraint file, if needed
-				e. fsolvated.gro --- for final solvated structure file
+				a. topol.top (Main topology file must be so named)
+				b. Ligand topology files --- named as defined in the topol.top file, if needed (e.g. LIGS_at.itp for atomtypes, and LIGS_mt.itp for moleculetypes)
+				c. Restraint file(s) --- named as defined in topol.top file, if needed (e.g. posre.itp and/or posre_udp.itp)
+				d. fsolvated.gro --- final solvated structure file must be so named
 		5). Go to the GUI platform, click MDS menu, select fresh, and upload necessary files as prepared. Following succcessful upload, you will be redirected to MDSrun page.
 		6). HAVING PROBLEM COMPILING OPENCL AT MDS RUN TIME, Try the following:
 				a. Create a reuseable OpenCL folder
