@@ -1,1 +1,2 @@
-peptide = sequence { TRP TRP LYS TRP PHE ARG ARG TRP TRP }
+# pyGROMODS-v2023.05.1 Release
+peptide = sequence { TRP TRP LYS TRP TRP ARG ARG TRP TRP }

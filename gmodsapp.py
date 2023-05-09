@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """
-    This code is released under GNU General Public License V3.
+    pyGROMODS-v2023.05.1 Release
 
-            <<<  NO WARRANTY AT ALL!!!  >>>
-
+                <<<  NO WARRANTY AT ALL!!!  >>>
+    
     Requirements: Python 3 or higher
                   Antechamber and related AmberTools
                   OpenBabel (strongly recommended for use with acpype)

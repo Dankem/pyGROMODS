@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 """
+    pyGROMODS-v2023.05.1 Release
+    
+            <<<  NO WARRANTY AT ALL!!!  >>>
+    
     This Script can be run from any where and can be used to update dependencies of python 
     packages as contained in the requirements.txt file. It can also generate requirements.txt 
     file and produce an updated version of the file. It can be placed anywhere, but preferably,

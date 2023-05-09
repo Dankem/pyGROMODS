@@ -1,4 +1,5 @@
-#tleapligtops.in 
+# pyGROMODS-v2023.05.1 Release
+#ligtoptleap.in 
 # To get topologies for each ligand
 source leaprc.gaff2 #
 source leaprc.protein.ff19SB #leaprc.protein.ff14SB OR leaprc.protein.ff19SB #

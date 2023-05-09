@@ -1,4 +1,4 @@
-# pyGROMODS
+# pyGROMODS-v2023.05.1 Release
 <<<<<<< HEAD
 #### Video Demo:  https://youtu.be/I4OKc6uVx1M
 =======

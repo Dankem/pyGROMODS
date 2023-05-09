@@ -1,4 +1,5 @@
-#tleap4ligs.in 
+# pyGROMODS-v2023.05.1 Release
+#tleap-4-ligs.in 
 # To setup complex with four ligands
 source leaprc.gaff2 #
 source leaprc.protein.ff19SB # OR leaprc.ff99SBildn OR leaprc.protein.ff14SB #

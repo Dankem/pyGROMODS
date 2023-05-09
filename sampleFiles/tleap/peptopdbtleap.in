@@ -1,11 +1,12 @@
-#peptidetleap.in 
+# pyGROMODS-v2023.05.1 Release
+#peptopdbtleap.in 
 # To convert peptide sequence into pdb
 source leaprc.gaff2 #
-source leaprc.protein.ff19SB #leaprc.protein.ff14SB, leaprc.protein.ff19SB, leaprc.ff99SB OR leaprc.ff99SBildn #
+source leaprc.protein.ff19SB #leaprc.protein.ff14SB, leaprc.protein.ff19SB, leaprc.ff99SB #
 source pep.in #
 set default PBRadii mbondi2 #
 savepdb peptide sequence.pdb #
 #solvateOct peptide TIP3PBOX 12.0 # #This box size can be adjusted as needed
 #addIons2 peptide NA 0 # #If the net charge on complex is positive, use 'addIons2 complex CL 0'
 #saveAmberParm peptide tlpSolvated.prmtop tlpSolvated.inpcrd #
-quit
+quit #
