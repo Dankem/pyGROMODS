@@ -369,8 +369,15 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 				else:
 					pass
 
-		# Overide the default generate menu selection if ff and water are not 'select'
-		if not (selff == "select" or selwater == "select"):
+		# Overide the default generate menu selections if ff and water are not 'select'
+		if selff == "select" or selwater == "select":
+			print(f"Current default values for -bt is: {defaults[2]}")
+			print(f"Current default values for -d is: {defaults[3]}")
+			print(f"Current default values for timeout is: {defaults[4]}")
+			response = tinput("To adjust these values for current protein - ligand complex, type YES/y: ", defaults[4], "n")
+			if response.lower() == "yes" or response.lower() == "y":
+				defaults[2], defaults[3], defaults[4] = defaults1() 
+		else:
 			selff = preff
 			selwater = prewater
     

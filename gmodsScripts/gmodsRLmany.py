@@ -264,6 +264,15 @@ def RLmany(appDIR, gmxDIR, fdefaults):
 		print(f"Current project host directory set to {workhost_dir}")
 		print('\n')
 
+		# Adjust defaults values of -bt, -b and timeout if ff and water are 'select'
+		if defaults[0] == "select" or defaults[1] == "select":
+			print(f"Current default values for -bt is: {defaults[2]}")
+			print(f"Current default values for -d is: {defaults[3]}")
+			print(f"Current default values for timeout is: {defaults[4]}")
+			response = tinput("To adjust these values for current protein - ligand complex, type YES/y: ", defaults[4], "n")
+			if response.lower() == "yes" or response.lower() == "y":
+				defaults[2], defaults[3], defaults[4] = defaults1() 
+
 		###############################################
 		# GENERATING PROTEIN TOPOLOGIES AND STRUCTURE #
 		###############################################
