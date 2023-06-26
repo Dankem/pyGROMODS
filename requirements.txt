@@ -1,11 +1,12 @@
-colored>=1.4.4
+colored>=2.2.1
 Flask>=2.3.2
 inputimeout>=1.0.4
+pipreqs>=0.4.13
 psutil>=5.9.5
-pyautogui>=0.9.53
+PyAutoGUI>=0.9.54
 pytimedinput>=2.0.1
 uvicorn>=0.22.0
 waitress>=2.1.2
-Werkzeug>=2.3.3
+Werkzeug>=2.3.6
 whichcraft>=0.6.1
-flaskwebgui>=106
+flaskwebgui>=1.0.6

@@ -139,13 +139,53 @@ def main():
         subprocess.run("pipreqs " + uppDIR, shell=True, stderr=subprocess.STDOUT, check=True, text=True)
     except:
         try:
-            subprocess.run("pip freeze | grep -f newreqs.txt > requirements.txt", shell=True, stderr=subprocess.STDOUT, check=True, text=True)
+            subprocess.run("pip freeze | grep -f newreqs.txt > required.txt", shell=True, stderr=subprocess.STDOUT, check=True, text=True)
+            shutil.copy("required.txt", os.path.join(uppDIR, "requirements.txt"))        
         except:
             print("Generation of new requirements.txt file failed")
             print("Restoring the old file ...")
             shutil.copy("oldreqs.txt", os.path.join(uppDIR, "requirements.txt"))
 
-    os.chdir('../')
+    shutil.copy("oldreqs.txt", os.path.join(uppDIR, "oldreqs.txt"))
+    os.chdir(uppDIR)
+
+    # Updating the new requirement.txt file
+    print("Updating the new requirement.txt file...")
+
+    os.rename("requirements.txt", "required.txt")
+
+    fileB = open("required.txt", "r")
+    readBline = fileB.readlines()
+    latestreqs = "requirements.txt"
+    openlatestreqs = open(latestreqs, "+a")
+
+    for lineB in readBline:
+        pkgupdate = ""
+        if lineB.count("=") == 2:
+            pkgupdate = lineB.strip().replace("=", ">", 1)
+        elif lineB.count("=") == 1 and lineB.count(">") == 1:
+            if lineB.strip().index("=") > lineB.strip().index(">"):
+                pkgupdate = lineB.strip()
+            else:
+                pkgupdate = lineB.strip().replace(">", "=").replace("=", ">", 1)
+        else:
+            pass
+        
+        openlatestreqs.write(pkgupdate)
+        openlatestreqs.write('\n')
+
+    openlatestreqs.close()
+    fileB.close()
+
+    try:
+        os.rename("oldreqs.txt", "reqs-backup.txt")
+    except FileExistsError:
+        os.remove("reqs-backup.txt")
+        os.rename("oldreqs.txt", "reqs-backup.txt")
+
+    os.remove("required.txt")
+    
+    print("Please compare 'reqs-backup.txt' with 'requirements.txt' and update the later with any missing module")
 
 if __name__ == "__main__":
     main()

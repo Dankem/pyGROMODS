@@ -23,7 +23,7 @@ import subprocess
 import time
 import shutil
 from pathlib import Path
-from colored import fore, back, style
+from colored import Fore, Back, Style
 from tkinter import Tk, filedialog
 from inputimeout import inputimeout, TimeoutOccurred
 from pytimedinput import timedInput
@@ -54,11 +54,17 @@ def tinput(message, timeout, default):
 
 
 def printWarning(message):
-	print(fore.WHITE + back.RED + message + style.RESET)
+	try:
+		print(Fore.WHITE + Back.RED + message + Style.RESET)
+	except:
+		print(message)
 
 
 def printNote(message):
-	print(fore.PURPLE_4B + back.LIGHT_YELLOW + message + style.RESET)
+	try:
+		print(Fore.PURPLE_4B + Back.LIGHT_YELLOW + message + Style.RESET)
+	except:
+		print(message)
 
 
 def select_folder(title):
