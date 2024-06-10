@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-    pyGROMODS-v2023.05.1 Release
+    pyGROMODS-v2024.01 Release
 
           <<<  NO WARRANTY AT ALL!!!  >>>
 
@@ -215,7 +215,7 @@ def SCmds(appDIR, gmxDIR):
     if not ('minzsd.tpr' in os.listdir() or 'minzsd.gro' in os.listdir()):
         printWarning("Steepest Descent Minimization failed. Please check emerror.txt file")
     else:
-        printNote("Steepest Descent Minimization Completed Siccessfully")
+        printNote("Steepest Descent Minimization Completed Successfully")
 
     cmdcg = ['gmx', 'grompp', '-f', '../mdps/minzcg.mdp', '-c', 'minzsd.gro', '-p', '../topol.top', '-o', 'minzcg.tpr', '-maxwarn', str(maxwarn)]
     try:
@@ -233,7 +233,7 @@ def SCmds(appDIR, gmxDIR):
             fem.close()
             raise Exception("Process Aborted. Make necessary corrections and restart")
     else:
-        printNote("Conjugate Gradient Minimization Completed Siccessfully")
+        printNote("Conjugate Gradient Minimization Completed Successfully")
         printNote("Minimization Phases Completed Successfully")
 
     fem.close()

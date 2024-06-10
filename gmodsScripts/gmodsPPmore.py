@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-    pyGROMODS-v2023.05.1 Release
+    pyGROMODS-v2024.01 Release
 
           <<<  NO WARRANTY AT ALL!!!  >>>
 
@@ -25,7 +25,7 @@ import shutil
 import random
 import string
 
-from gmodsScripts.gmodsHelpers import receptopol, complexgen, solvation, insertdetails, printWarning, printNote, tinput, defaults1, defaults2
+from gmodsScripts.gmodsHelpers import receptopol, complexgen, solvation, insertdetails, printWarning, printNote, tinput, defaults1, defaults2, gmxmdsFChecks
 
 from gmodsScripts.gmodsTLptopol import TLtopol
 
@@ -423,15 +423,35 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 				if file == 'tlpSolvated.gro' or file == 'tlpSolvated.top':
 					shutil.copy(os.path.join(workhost_dir, 'Solvation', file), './')
 
-		# Removing files not needed
+		# Removing files not needed for MDS
 		print("Removing files not needed for MDS from gmxmds directory")
 		print("These files can still be found in Solvation directory")
 
-		gmxmdsrequired = ['fsolvated.gro', 'ufsolvate.gro', 'tlpSolvated.gro', 'tlpSolvated.top', 'tlpComplex.gro', 'tlpComplex.top', 'catComplex.gro', 'tlptopol.top', 'topol.top', 'LIGS_at.itp', 'LIGS_mt.itp', 'posre.itp']
+		gmxmdsrequired = ['fsolvated.gro', 'ufsolvate.gro', 'tlpSolvated.gro', 'tlpSolvated.top', 'tlptopol.top', 'topol.top']
+		for itpf in os.listdir():
+			if Path(itpf).suffix == ".itp":
+				gmxmdsrequired.append(itpf)
+		 
 		for rmf in os.listdir():
 			if not rmf in gmxmdsrequired: 
 				os.remove(rmf)
 
+		# Getting Include files ready and up-to-date
+		neededIncludeFiles = gmxmdsFChecks(os.listdir())
+		notNeededIncludeFiles = []
+
+		for includefile in os.listdir():
+			if Path(includefile).suffix == ".itp":
+				if not includefile in neededIncludeFiles:
+					if not includefile in notNeededIncludeFiles:
+						notNeededIncludeFiles.append(includefile)
+			else:
+				pass
+		
+		os.mkdir("not4mds")
+		for notfile in notNeededIncludeFiles:
+			shutil.move(notfile, os.path.join(workhost_dir, 'gmxmds', 'not4mds'))
+		
 		# If required, new restraint file can now be generated
 		listgmxmds = os.listdir()
 
@@ -613,6 +633,10 @@ def PPmore(appDIR, gmxDIR, fdefaults):
 					os.remove(fitem)
 
 			os.chdir('../') 
+
+	print('\n')
+	print("PLEASE NOTE:")
+	print("The files in folder 'not4mds' of 'gmxmds' are considered not necessary for MDS. Please check")
 
 	print('\n')
 	printNote("Setup with PPmore route completed. Please analyse the contents of 'check', 'check1' and/or 'check2' files and their backup versions in 'Solvation' folder before proceeding with MDS")

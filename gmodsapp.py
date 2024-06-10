@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-    pyGROMODS-v2023.05.1 Release
+    pyGROMODS-v2024.01 Release
 
                 <<<  NO WARRANTY AT ALL!!!  >>>
     
@@ -45,7 +45,7 @@ import gmodsScripts.gmodsSCmds
 import gmodsScripts.gmodsCONmds
 import gmodsScripts.gmodsPPmore
 from gmodsScripts.gmodsCRPackages import reqPackages_Check
-from gmodsScripts.gmodsHelpers import printWarning, printNote, select_folder, gmxtop
+from gmodsScripts.gmodsHelpers import printWarning, printNote, select_folder, gmxtop, gmxmdsFChecks
 
 from flask import Flask, flash, request, redirect, render_template, g
 from functools import wraps
@@ -59,7 +59,7 @@ if getattr(sys, 'frozen', False):
     template_folder = os.path.join(appDIR, 'templates')
     static_folder = os.path.join(appDIR, 'static')
     scripts_folder = os.path.join(appDIR, 'gmodsScripts')
-    app = Flask(__name__, template_folder=template_folder, static_folder=static_folder, scripts_folder=scripts_folder)
+    app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
 else:
     app = Flask(__name__)
 
@@ -88,7 +88,7 @@ else:
     printNote("You have choosen to continue with the process")
 time.sleep(5)
 
-# Let's setup our GUI interface and add app and other parameters
+# # Let's setup our GUI interface and add app and other parameters
 # First, Let's generate unique port and check it availability
 gmodsport = ""
 while True:
@@ -115,13 +115,13 @@ plat4m = platform.platform().split('-')
 if "WSL2" in plat4m or "wsl2" in plat4m:
     try:
         from gmodsScripts.flaskwebgui.flaskwebgui037 import FlaskUI
-        ui = FlaskUI(app, width=825, height=650, port=gmodsport) # for v037
+        ui = FlaskUI(app, width=900, height=650, port=gmodsport) # for v037
     except Exception as e1:
         print(f"'flaskwebgui' failed with error: {e1}")
         print("Trying again ...")
         try:
             from gmodsScripts.flaskwebgui.flaskwebgui106 import FlaskUI
-            ui = FlaskUI(app=app, width=825, height=650, port=gmodsport, server="flask") # for v106
+            ui = FlaskUI(app=app, width=900, height=650, port=gmodsport, server="flask") # for v106
         except Exception as e2:
             printWarning(f"'flaskwebgui' failed with error: {e2}")
             print("Please check and correct the errors")
@@ -130,13 +130,13 @@ if "WSL2" in plat4m or "wsl2" in plat4m:
 else:
     try:
         from gmodsScripts.flaskwebgui.flaskwebgui106 import FlaskUI
-        ui = FlaskUI(app=app, width=825, height=650, port=gmodsport, server="flask") # for v106
+        ui = FlaskUI(app=app, width=900, height=650, port=gmodsport, server="flask") # for v106
     except Exception as e1:
         print(f"'flaskwebgui' failed with error: {e1}")
         print("Trying again ...")
         try:
             from gmodsScripts.flaskwebgui.flaskwebgui037 import FlaskUI
-            ui = FlaskUI(app, width=825, height=650, port=gmodsport) # for v037
+            ui = FlaskUI(app, width=900, height=650, port=gmodsport) # for v037
         except Exception as e2:
             printWarning(f"'flaskwebgui' failed with error: {e2}")
             print("Check and correct the errors")

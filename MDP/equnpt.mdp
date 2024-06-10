@@ -1,4 +1,4 @@
-; MDS-NPT Sample file - pyGROMODS-v2023.05.1 Release 
+; MDS-NPT Sample file - pyGROMODS-v2024.01 Release 
 
 title                    = NPT simulation (constant number, pressure and temperature)
 

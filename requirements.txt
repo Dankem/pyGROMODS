@@ -1,3 +1,4 @@
+cx_Freeze>=6.15.12
 colored>=2.2.1
 Flask>=2.3.2
 inputimeout>=1.0.4

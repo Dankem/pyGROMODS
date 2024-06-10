@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-    pyGROMODS-v2023.05.1 Release
+    pyGROMODS-v2024.01 Release
 
           <<<  NO WARRANTY AT ALL!!!  >>>
 
@@ -25,7 +25,7 @@ import shutil
 import random
 import string
 
-from gmodsScripts.gmodsHelpers import ligtopol, receptopol, topolsplit, indexoflines, complexgen, pdbcatogro, solvation, insertdetails, printWarning, printNote, tinput, defaults1, defaults2
+from gmodsScripts.gmodsHelpers import ligtopol, receptopol, topolsplit, indexoflines, complexgen, pdbcatogro, solvation, insertdetails, printWarning, printNote, tinput, defaults1, defaults2, gmxmdsFChecks
 
 from gmodsScripts.gmodsTLptopol import TLtopol
 from gmodsScripts.gmodsTScheck import checktopsimilarities, Checkligtop
@@ -754,7 +754,9 @@ def RLmulti(appDIR, gmxDIR, fdefaults):
 
 	listRdir = os.listdir(os.path.join(work_dir, 'Receptor'))
 	for R in listRdir:
-		if R == 'xreceptor.pdb' or R == 'nReceptor.top' or R == 'nReceptor.pdb' or R == 'posre.itp':
+		if R == 'xreceptor.pdb' or R == 'nReceptor.top' or R == 'nReceptor.pdb':
+			shutil.copy(os.path.join(work_dir, 'Receptor', R), './')
+		elif Path(R).suffix == ".itp":
 			shutil.copy(os.path.join(work_dir, 'Receptor', R), './')
 
 	shutil.copy(os.path.join(scriptDIR, 'gmodsScripts', 'at-topol.itp'), './')
@@ -946,10 +948,12 @@ def RLmulti(appDIR, gmxDIR, fdefaults):
 	for R in listRdir:
 		if R == 'xreceptor.pdb' or R == 'nReceptor.top' or R == 'nReceptor.pdb':
 			shutil.copy(os.path.join(work_dir, 'Receptor', R), './')
+		elif Path(R).suffix == ".itp":
+			shutil.copy(os.path.join(work_dir, 'Receptor', R), './')
 
 	listTdir = os.listdir(os.path.join(work_dir, 'Complex'))
 	for T in listTdir:
-		if T == 'tlpComplex.gro' or T == 'tlpComplex.top' or T == 'catComplex.gro' or T == 'catComplex.pdb' or T == 'tlpSolvated.gro' or T == 'tlpSolvated.top' or T == 'posre.itp' or T == 'topol.top' or T == 'utopol.top':
+		if T == 'tlpComplex.gro' or T == 'tlpComplex.top' or T == 'catComplex.gro' or T == 'catComplex.pdb' or T == 'tlpSolvated.gro' or T == 'tlpSolvated.top' or T == 'topol.top' or T == 'utopol.top':
 			shutil.copy(os.path.join(work_dir, 'Complex', T), './')
 
 	# Determine if the forcefield belong to the selected group - amber, charmm, gromos and opls
@@ -1175,7 +1179,11 @@ def RLmulti(appDIR, gmxDIR, fdefaults):
 	print("Removing files not needed for MDS from gmxmds directory")
 	print("They can be found in Solvation directory")
 
-	gmxmdsrequired = ['fsolvated.gro', 'ufsolvate.gro', 'tlpSolvated.gro', 'tlpSolvated.top', 'tlptopol.top', 'topol.top', 'LIGS_at.itp', 'LIGS_mt.itp', 'posre.itp']
+	gmxmdsrequired = ['fsolvated.gro', 'ufsolvate.gro', 'tlpSolvated.gro', 'tlpSolvated.top', 'tlptopol.top', 'topol.top']
+	for itpf in os.listdir():
+		if Path(itpf).suffix == ".itp":
+			gmxmdsrequired.append(itpf)
+		
 	for rmf in os.listdir():
 		if not rmf in gmxmdsrequired: 
 			os.remove(rmf)
@@ -1186,6 +1194,22 @@ def RLmulti(appDIR, gmxDIR, fdefaults):
 			os.remove('tlpSolvated.top')
 		except:
 			pass
+
+	# Getting Include files ready and up-to-date
+	neededIncludeFiles = gmxmdsFChecks(os.listdir())
+	notNeededIncludeFiles = []
+
+	for includefile in os.listdir():
+		if Path(includefile).suffix == ".itp":
+			if not includefile in neededIncludeFiles:
+				if not includefile in notNeededIncludeFiles:
+					notNeededIncludeFiles.append(includefile)
+		else:
+			pass
+	
+	os.mkdir("not4mds")
+	for notfile in notNeededIncludeFiles:
+		shutil.move(notfile, os.path.join(work_dir, 'gmxmds', 'not4mds'))
 
 	# Now if need be, let's generate a new restraint file
 	if "fsolvated.gro" in os.listdir():
@@ -1240,6 +1264,10 @@ def RLmulti(appDIR, gmxDIR, fdefaults):
 		print("To generate alternative tleap solvated files, follow instruction in README.md file to edit relevant tleap file and rerun the process")
 		time.sleep(5)
 		os.chdir('../')
+
+	print('\n')
+	print("PLEASE NOTE:")
+	print("The files in folder 'not4mds' of 'gmxmds' are considered not necessary for MDS. Please check")
 
 	print('\n')
 	printNote("Setup with RLmulti route completed. Please analyse the contents of 'check', 'check1' and/or 'check2' files and their backup versions in 'Solvation' folder before proceeding with MDS") 

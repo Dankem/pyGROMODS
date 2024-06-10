@@ -1,16 +1,21 @@
-MIT License
+MIT License as per Author's Ammendment
 
-Copyright (c) 2023 Michael O. Daniyan @ pyGROMODS-v2023.05.1 Release
+Copyright (c) 2024 Michael O. Daniyan @ pyGROMODS-v2024.01 Release
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+to use, copy, modify, merge, publish, distribute, and sublicense of the Software, 
+and to permit persons to whom the Software is furnished to do so, subject to the 
+following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1.  The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+2.  That the software may not be sold or included in commercial software package without
+    prior permission from the Author.
+3.  That the use of the software will be include the following citations and cause to be 
+    cited in all relevant publications:
+    "Daniyan O. M. (2023): pyGROMODS: A Python package for the generation of input files for molecular dynamic simulation with GROMACS. Journal of Biomolecular Structure and Dynamics. https://doi.org/10.1080/07391102.2023.2239929"
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,

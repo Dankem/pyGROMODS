@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-    pyGROMODS-v2023.05.1 Release
+    pyGROMODS-v2024.01 Release
 
           <<<  NO WARRANTY AT ALL!!!  >>>
 

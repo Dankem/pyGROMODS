@@ -1,4 +1,4 @@
-    /* STYLES SHEET - pyGROMODS-v2023.05.1 Release */
+    /* STYLES SHEET - pyGROMODS-v2024.01 Release */
 
 nav .navbar-brand
 {
@@ -33,10 +33,10 @@ main .form-control
     width: auto;
 }
 
-main
-{
+main {
     /* Scroll horizontally as needed */
     overflow-x: auto;
+    font-family: "Times New Romans";
 
     /* Center contents */
     /*text-align: center;
@@ -56,10 +56,10 @@ main
     justify-content: center;
 }
 
-.container 
-{
-    font-family: "Arial Helvetica sans-serif";
-	margin: 1px 35px 5px;
+.container {
+    font-family: "Times New Romans";
+    margin: 1px 35px 5px;
+    font-size: 21px;
 }
 
 /*main .container 
@@ -73,25 +73,29 @@ main
     position: fixed;
 }
 
-h1
-{
+h1 {
     color: blue;
     font-size: 24px;
     line-height: 1.5;
+    font-family: Helvetica;
 }
 
-h2
-{
+h2 {
     color: green;
     font-weight: bold;
     line-height: 1;
+    font-family: Arial;
 }
 
-h3
-{
+h3 {
     color: black;
     font-weight: bold;
     line-height: 1;
+    font-family: "Times New Roman";
+}
+
+p {
+    font-family: "Times New Roman";
 }
 
 #gap

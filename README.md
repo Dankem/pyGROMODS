@@ -1,4 +1,4 @@
-# pyGROMODS-v2023.05.1 Release
+# pyGROMODS-v2024.01 Release
 <<<<<<< HEAD
 #### Video Demo:  https://youtu.be/I4OKc6uVx1M
 =======
@@ -56,7 +56,9 @@
 ## INSTALLATION:
 	pyGROMODS can be obtained by direct download from https://github.com/Dankem/pyGROMODS or by using Git or checkout with SVN. The downloaded pyGROMODS must be installed in a location where the user has write access. This is becuase folders and files will be generated in the process. In linux environment, you can set the PATH to the pyGROMODS in the .bashrc file. Setting the PATH is the recommended approach for installation. It allows user to have working directory in any other place on the system without tampering with the scripts. After setting the PATH and source the .bashrc file, just type gmodsapp.py on the terminal to launch the platform. However, if PATH can not be set, you can navigate to the directory containing pyGROMODS folder. To launch the application, type python pyGROMODS/gmodsapp.py or python3 pyGROMODS/gmodsapp.py. You will be required to choose a working directory before the platform GUI interface will launch. DON'T CHOOSE INSTALLATION PATH AS YOUR WORKING DIRECTORY.All folders and file will be generated and saved in the working directory. 
 
-	Also, since this package is just a gui interface for setting up and running molecular dynamic simulation with gromacs, all dependent programs (gromacs, ambertools antechamber, acpype, etc) must be correctly installed and their executables should easily be found in the path. This package has been well tested with various versions of gromacs, ambertools and acpype (from 2014 to 2022). Therefore, it is advisable to install the latest version of these program for use with pyGROMODS.
+	If using the precompiled executables for linux or windows, extract into suitable directory, set the path to the executable (gmodsapp or gmodsapp.exe respectively), or launch directly from the folder (./gmodsapp or ./gmodsapp.exe). 
+	
+	Please also note that since this package is just a gui interface for setting up and running molecular dynamic simulation with gromacs, all dependent programs (gromacs, ambertools antechamber, tleap, parmchk, acpype, etc) must be correctly installed and their executables should easily be found in the path. This package has been well tested with various versions of gromacs, ambertools and acpype (from 2014 to 2022). Therefore, it is advisable to install the latest version of these program for use with pyGROMODS.
 
 ## USAGE INSTRUCTIONS:
 	*** PLEASE NOTE: ***
@@ -178,4 +180,13 @@
 				b). Rerun the setup to generate tleap solvated files - tlpSolvated.gro and tlpSolvated.top
 				c). Open these files in any text editor and change WAT to SOL in both files
 				d). Try running Gromacs MDS with the updated files
+				c). Try Video tutorial which can be downloaded from https://youtu.be/I4OKc6uVx1M.
 
+## CITATIONS:
+	If you use this package, please cite the following:
+	1.	Daniyan O. M. (2023): pyGROMODS: A Python package for the generation of input files 
+		for molecular dynamic simulation with GROMACS. Journal of Biomolecular Structure and Dynamics. https://doi.org/10.1080/07391102.2023.2239929
+	2.	If downloaded from Zenodo, please include https://doi.org/10.5281/zenodo.7912747
+	3.	If downloade precompiled executables from Zenodo, please include https://doi.org/10.5281/zenodo.8087090, 
+	
+	

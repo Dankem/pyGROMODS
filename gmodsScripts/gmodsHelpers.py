@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-    pyGROMODS-v2023.05.1 Release
+    pyGROMODS-v2024.01 Release
 
           <<<  NO WARRANTY AT ALL!!!  >>>
 
@@ -23,7 +23,13 @@ import subprocess
 import time
 import shutil
 from pathlib import Path
-from colored import Fore, Back, Style
+try:
+	from colored import Fore, Back, Style
+except ImportError:
+	try:
+		from colored import fore, back, style
+	except ImportError:
+		pass
 from tkinter import Tk, filedialog
 from inputimeout import inputimeout, TimeoutOccurred
 from pytimedinput import timedInput
@@ -57,14 +63,20 @@ def printWarning(message):
 	try:
 		print(Fore.WHITE + Back.RED + message + Style.RESET)
 	except:
-		print(message)
+		try:
+			print(fore.WHITE + back.RED + message + style.RESET)
+		except:
+			print(message)
 
 
 def printNote(message):
 	try:
 		print(Fore.PURPLE_4B + Back.LIGHT_YELLOW + message + Style.RESET)
 	except:
-		print(message)
+		try:
+			print(fore.PURPLE_4B + back.LIGHT_YELLOW + message + style.RESET)
+		except:
+			print(message)
 
 
 def select_folder(title):
@@ -689,6 +701,23 @@ def insertdetails(file1, file2, identifier):
 
 	file1open.close()
 	file2open.close()
+
+
+def gmxmdsFChecks(listgmxmds):
+	""" Determining selected line index of Gromacs compatible topology files """
+	filestoretain = []
+	for topolfile in listgmxmds:
+		if Path(topolfile).suffix == ".top":
+			fileT = open(topolfile, "r")
+			readfileT = fileT.readlines()
+	
+			for lineT in readfileT:
+				lineTlist = lineT.split()
+				if "#include" in lineTlist and not lineTlist[1].split('"')[1] in filestoretain:
+					filestoretain.append(lineTlist[1].split('"')[1])
+			fileT.close()
+
+	return filestoretain
 
 
 def cleanup():

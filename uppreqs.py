@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-    pyGROMODS-v2023.05.1 Release
+    pyGROMODS-v2024.01 Release
     
             <<<  NO WARRANTY AT ALL!!!  >>>
     
@@ -186,6 +186,10 @@ def main():
     os.remove("required.txt")
     
     print("Please compare 'reqs-backup.txt' with 'requirements.txt' and update the later with any missing module")
+    print("IF INSTALLATION FAILS USING THIS PACKAGE. TRY THE FOLLOWING:")
+    print("1). Navigate to the target package folder that contains 'requirements.txt' file")
+    print("2). Try this command: pip install --upgrade --upgrade-strategy=only-if-needed -r requirements.txt")
+    print("3). Check on-screen output to confirm success or otherwise")
 
 if __name__ == "__main__":
     main()

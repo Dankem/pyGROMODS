@@ -19,13 +19,14 @@ if sys.version_info < (3, 5):
     raise Exception("Python 3.5 or a more recent version is required.")
 
 import os
+import subprocess
 import string
 import platform
 from os.path import join
 
 def reqPackages_Check():
     check_results = []
-    check_files = ['gmx', 'antechamber', 'parmchk2', 'tleap', 'acpype', 'acpype.py', 'gmx.exe', 'antechamber.exe', 'parmchk2.exe', 'teleap.exe']
+    check_files = ['gmx', 'antechamber', 'parmchk2', 'tleap', 'acpype', 'acpype.py', 'gmx.exe', 'antechamber.exe', 'parmchk2.exe', 'teleap.exe', 'obabel', 'obabel.exe']
     availableDrives = ['%s:' % d for d in string.ascii_uppercase if os.path.exists('%s:' % d)]
 
     def check_Windows(availableDrives, check_files):
@@ -42,7 +43,7 @@ def reqPackages_Check():
             availableFolders = os.listdir(driveFolder)
             tocheck = ['Program Files', 'Program Files (x86)', 'ProgramData']
             for f in availableFolders:
-                if f == 'gromacs' or f == 'amber' or f == 'acpype' or f[0:7] == 'gromacs' or f[0:5] == 'amber' or f[0:6] == 'acpype':
+                if f.lower() == 'gromacs' or f.lower() == 'amber' or f.lower() == 'acpype' or f[0:7].lower() == 'gromacs' or f[0:5].lower() == 'amber' or f[0:6].lower() == 'acpype' or f[0:9].lower() == 'openbabel':
                     targetFolder = join(driveFolder, f)
                     for root, dirs, files in os.walk(targetFolder):
                         for ckfileB in check_files:
@@ -53,7 +54,7 @@ def reqPackages_Check():
                     newFolder = join(driveFolder, f)
                     listnewFolder = os.listdir(newFolder)
                     for j in listnewFolder:
-                        if j == 'gromacs' or j == 'amber' or j == 'acpype' or j[0:7] == 'gromacs' or j[0:5] == 'amber' or j[0:6] == 'acpype':
+                        if j.lower() == 'gromacs' or j.lower() == 'amber' or j.lower() == 'acpype' or j[0:7].lower() == 'gromacs' or j[0:5].lower() == 'amber' or j[0:6].lower() == 'acpype' or f[0:9].lower() == 'openbabel':
                             targetFolder = join(newFolder, j)
                             for root, dirs, files in os.walk(targetFolder):
                                 for ckfileB in check_files:
@@ -98,6 +99,7 @@ def reqPackages_Check():
         print("parmchk2")
         print("tleap")
         print("acpype")
+        print("openbabel")
 
     if not len(check_results) > 0:
         return "Unable to Check"
@@ -129,6 +131,23 @@ def reqPackages_Check():
         passed_Checks.append("acpype")
     else:
         failed_Checks.append("acpype")
+
+    if "obabel" in check_results or "obabel.exe" in check_results:
+        passed_Checks.append("openbabel")
+    else:
+        return_code = subprocess.call(['obabel', '-H'])
+        if return_code == 0:
+            passed_Checks.append("openbabel")    
+        else:
+            failed_Checks.append("openbabel")
+
+    # Checking for Openbabel Python Installation 
+    try:
+        import openbabel
+    except ImportError:
+        failed_Checks.append("python openbabel")   
+    else:
+        passed_Checks.append("python openbabel")
 
     if len(passed_Checks) > 0:
         print("The Installation of the following Package(s) was/were detected")

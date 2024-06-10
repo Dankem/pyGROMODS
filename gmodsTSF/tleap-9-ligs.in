@@ -1,8 +1,12 @@
-# pyGROMODS-v2023.05.1 Release
+# pyGROMODS-v2024.01 Release
 #tleap-9-ligs.in 
 # To setup complex with three ligands
 source leaprc.gaff2 #
 source leaprc.protein.ff19SB # OR leaprc.ff99SBildn OR leaprc.protein.ff14SB #
+source leaprc.DNA.OL21 #leaprc.DNA.OL21 or leaprc.DNA.OL15 #
+source leaprc.RNA.LJbb #leaprc.RNA.LJbb or leaprc.RNA.OL3 #
+source leaprc.GLYCAM_06j-1 #
+source leaprc.lipid21 #
 source leaprc.water.tip3p #
 set default PBRadii mbondi2 #
 loadAmberParams yLIG1.frcmod #
