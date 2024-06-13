@@ -469,7 +469,7 @@ def RLmulti(appDIR, gmxDIR, fdefaults):
 				shutil.copy(lig, nligname)
 
 		elif Path(lig).suffix == ".mol2":
-			ligtopol_pdb = name + "new" + ".pdb"
+			ligtopol_pdb = Lname + "new" + ".pdb"
 			try:
 				subprocess.run(['gmx', 'editconf', '-f', ligtopol_pdb, '-o', nligname], check=True, stderr=subprocess.STDOUT, stdout=ligE, text=True)
 			except subprocess.SubprocessError as e:

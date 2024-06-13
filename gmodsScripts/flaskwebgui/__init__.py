@@ -5,4 +5,4 @@
 """
 # All imports are done within the calling scripts
 
-__version__ = "v2023.05.1"
+__version__ = "v2024.01"

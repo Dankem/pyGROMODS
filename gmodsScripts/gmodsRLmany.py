@@ -201,11 +201,11 @@ def RLmany(appDIR, gmxDIR, fdefaults):
 
 	# Get user imput for project name
 	while True:
-		name = tinput("Suppy a name for the current project: ", defaults[4], "RLmany")
-		if name == " ":
+		Xname = tinput("Suppy a name for the current project: ", defaults[4], "RLmany")
+		if Xname == " ":
 			print("You must supply a name for the project")
 			continue
-		elif name.isalpha() == False:
+		elif Xname.isalpha() == False:
 			print("Supplied name must be all alphabets")
 			continue
 		else:
@@ -217,7 +217,7 @@ def RLmany(appDIR, gmxDIR, fdefaults):
 		idalpha1 = random.choice(string.ascii_uppercase)
 		idalpha2 = random.choice(string.ascii_uppercase)
 		ID = idalpha1 + str(idnumber) + idalpha2
-		foldername = name + "_" + str(ID)
+		foldername = Xname + "_" + str(ID)
 		if not os.path.isdir(foldername):
 			print(f"Your Unique ID is: {ID}")
 			print(f"Your current work will be stored in {foldername}")

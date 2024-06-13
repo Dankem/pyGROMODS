@@ -632,7 +632,7 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 				shutil.copy(lig, nligname)
 
 		elif Path(lig).suffix == ".mol2":
-			ligtopol_pdb = name + "new" + ".pdb"
+			ligtopol_pdb = dlname + "new" + ".pdb"
 			try:
 				subprocess.run(['gmx', 'editconf', '-f', ligtopol_pdb, '-o', nligname], check=True, stderr=subprocess.STDOUT, stdout=ligE, text=True)
 			except subprocess.SubprocessError as e:
