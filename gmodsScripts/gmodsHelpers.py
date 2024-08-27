@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-    pyGROMODS-v2024.01 Release
+    pyGROMODS-v2024.02 Release
 
           <<<  NO WARRANTY AT ALL!!!  >>>
 
@@ -106,35 +106,49 @@ def gmxtop():
 	# Get the absolute path to the forcefield directory and get the awailabe ff
 	gmxtopdir = " "
 	gmxtopff = []
+	attempt = 0
 
 	def topdir():
-		title = "Select Gromacs tops Directory"
+		title = "Select GROMACS Topology Directory"
 		try:
 			gmxTDir = os.path.join(os.environ.get('GMXDATA'), 'top')
 		except:
-			print("Autodetection of gromacs forcefield directory failed")
-			print("Use the folder explorer to searh. Usually /path-to-gromacs/share/gromacs/top")
+			printWarning("Autodetection of GROMACS forcefield directory failed")
+			print("Tyr searching with folder explorer [Hint: /path-to-gromacs/share/gromacs/top]")
 			while True:
+				ndir = 0
 				gmxTDir = select_folder(title)
 				if not os.path.isdir(gmxTDir):
 					print("Directory you specified does not exist. Please check and try again")
+					ndir += 1
+					if ndir > 3:
+						printWarning("Too many attempts. Process will proceed but may fail")
+						gmxTDir = "unknown"
+						break
 				else:
 					break
 		return gmxTDir
 
 	while True:
 		gmxtopdir = topdir()
+		if gmxtopdir == "unknown":
+			break
 		listtopdir = os.listdir(gmxtopdir)
 		for fdir in listtopdir:
 			if Path(fdir).suffix == ".ff":
 				gmxtopff.append(Path(fdir).stem)
 		
 		if not len(gmxtopff) > 0:
-			print("Selected directory is not a valid gromacs toplogy directory or it's empty")
-			response = input("To continue anyway, type YES/y. Press ENTER to search again: ")
-			if not (response.lower() == "yes" or response.lower() == "y"):
-				continue
+			print("Selected directory is not a valid GROMACS topology directory or it's empty")
+			if not attempt > 3:
+				response = input("To continue anyway, type YES/y. Press ENTER to search again: ")
+				if not (response.lower() == "yes" or response.lower() == "y"):
+					attempt += 1
+					continue
+				else:
+					break
 			else:
+				printWarning("Too many attempts. Process will proceed but may fail")
 				break
 		else:
 			break
@@ -146,6 +160,7 @@ def ligtopol(ligand, name):
 	""" Generating parameters for ligands """
 	# Setup some variables
 	print('\n')
+	print(f'Generating topology for {ligand}')
 	liggro = name + ".gro"
 	ligtop = name + ".top"
 	ligmol = name + ".mol2"
@@ -186,13 +201,12 @@ def ligtopol(ligand, name):
 		printWarning(f"Something went wrong with the above error message. {ligand} preparation process may most likely fail")
 		postCheck += 1	
 
-	print("Renaming generated files ...")
 	try:
 		shutil.move(glob.glob("LIGx.*")[0], "LIG.prmtop")
 		shutil.move(glob.glob("LIGy.*")[0], "LIG.inpcrd")
 		shutil.move(glob.glob("LIGz_new.*")[0], "LIGnew.pdb")
 	except:
-		printWarning("Renaming of some needed files failed. This may affect your work")
+		printNote("Renaming of some needed files failed. This may affect your work")
 		postCheck += 1
 
     # Run acpype to convert antechamber/tleap files to Gromacs or directly generate topology file
@@ -201,7 +215,7 @@ def ligtopol(ligand, name):
 		print("Running acpype ...")
 		lcmd3 = ['acpype', '-p', 'LIG.prmtop', '-x', 'LIG.inpcrd']
 	else:
-		print("Attempting to use acpype for topology generation ...")
+		print(f"{ligand} topology generation failed. Attempting alternative approach ...")
 		lcmd3 = ['acpype', '-i', ligand, '-b', name]
 		
 	try:
@@ -230,7 +244,7 @@ def ligtopol(ligand, name):
 		shutil.move("LIG.frcmod", ligfrc)
 		shutil.move("LIGnew.pdb", ligpdb)
 	except:
-		printWarning("Renaming of some needed files failed. This may affect your work")
+		printNote("Renaming of some needed files failed. This may affect your work")
 
 	f.close()
 	return liggro, ligtop
@@ -238,22 +252,63 @@ def ligtopol(ligand, name):
 
 def receptopol(receptor, name, selff, selwater):
 	""" Generating receptor topology and gro files """
+	f = open('recerror.txt', 'a')
+
+	if selwater == "tip4pew" or selwater == "tip5pe":
+		printNote(f"Your preferred {selwater} water model will have to be selelcted interactively")
+		selwater = "select"
+
 	recpdb = name + '.pdb'
 	rectop = name + '.top'
 	rcmd = ['gmx', 'pdb2gmx', '-f', receptor, '-p', rectop, '-o', recpdb, '-ff', selff, '-water', selwater, '-ignh']
 
-	try:
-		subprocess.run(rcmd, check=True, stderr=subprocess.STDOUT, text=True)
-	except subprocess.SubprocessError as e:
-		print(e)
-		print(f"{receptor}, preparation failed with above error")
-		response = input("To proceed interactively, type YES/y, otherwise, press ENTER to abort: ")
-		if not (response.lower() == "yes" or response.lower() == "y"):
-			raise Exception("Process Aborted. Make necessary corrections and restart")
-		else:
-			rcmd = ['gmx', 'pdb2gmx', '-f', receptor, '-p', rectop, '-o', recpdb, '-ff', 'select', '-water', 'select', '-ignh']
-			subprocess.run(rcmd, check=True, stderr=subprocess.STDOUT, text=True)
+	if selff == "select" or selwater == "select":
+		print('\n')
+		while True:
+			try:
+				subprocess.run(rcmd, check=True, stderr=subprocess.STDOUT, text=True)
+			except subprocess.SubprocessError as e:
+				print(e)
+				print(f"{receptor}, preparation failed with above error")
+				printNote("Retry with a different forcefield group is RECOMMENDED")
+				response = input("Type YES/y to retry, OR press ENTER to abort: ")
+				if not (response.lower() == "yes" or response.lower() == "y"):
+					raise Exception("Process Aborted. Make necessary corrections and restart")
+				else:
+					continue
+			else:
+				break
 
+	else:
+		print('\n')
+		print("Running pdb2gmx....")
+		try:
+			subprocess.run(rcmd, check=True, stderr=subprocess.STDOUT, stdout=f, text=True)
+		except subprocess.SubprocessError as e:
+			print(e)
+			print(f"{receptor}, preparation failed with above error. Please check error file in Receptor folder")
+			response = input("To proceed interactively, type YES/y, otherwise, press ENTER to abort: ")
+			if not (response.lower() == "yes" or response.lower() == "y"):
+				raise Exception("Process Aborted. Make necessary corrections and restart")
+			else:
+				printNote("Interactvie mode: Using a different forcefield group is RECOMMENDED")
+				while True:
+					rcmd = ['gmx', 'pdb2gmx', '-f', receptor, '-p', rectop, '-o', recpdb, '-ff', 'select', '-water', 'select', '-ignh']
+					try:
+						subprocess.run(rcmd, check=True, stderr=subprocess.STDOUT, text=True)
+					except subprocess.SubprocessError as e:
+						print(e)
+						print(f"{receptor}, preparation failed with above error")
+						printNote("Retry with a different forcefield group is RECOMMENDED")
+						response = input("Type YES/y to retry, OR press ENTER to abort: ")
+						if not (response.lower() == "yes" or response.lower() == "y"):
+							raise Exception("Process Aborted. Make necessary corrections and restart")
+						else:
+							continue
+					else:
+						break
+
+	f.close()
 	return rectop, recpdb, 'posre.itp'
 
 
@@ -329,7 +384,7 @@ def complexgen(tleapfile):
 		subprocess.run(['tleap', '-s', '-f', tleapfile], check=True, stderr=subprocess.STDOUT, stdout=f, text=True)
 	except subprocess.SubprocessError as e:
 		print(e)
-		printWarning("The above errors detected and complex generation process failed. Please check 'cplxerror.txt' file and make corrections")
+		printWarning("Complex generation process failed. Please check abve error message and 'cplxerror.txt' file")
 		printNote("However, attempt will be made to use alternative approach")
 		f.close()
 		return 'fComplex.gro', 'fComplex.top'
@@ -345,8 +400,7 @@ def complexgen(tleapfile):
 		subprocess.run(['acpype', '-p', 'complex.prmtop', '-x', 'complex.inpcrd'], check=True, stderr=subprocess.STDOUT, stdout=f, text=True)
 	except subprocess.SubprocessError as e:
 		print(e)
-		printWarning("Preparing Complex or protein structure failed with above error")
-		printNote("It is advisable to check 'cplxerror.txt' file, make corrections where necessary, and rerun")
+		printWarning("Process encountered error. Please check above error message and 'cplxerror.txt' file")
 		printNote("However, attempt will be made to use alternative approach")
 		f.close()
 		return 'fcomplex.gro', 'fcomplex.top'
@@ -363,8 +417,7 @@ def complexgen(tleapfile):
 		shutil.move('complex_GMX.gro', 'Complex.gro')
 		shutil.move('complex_GMX.top', 'Complex.top')
 	except Exception as e:
-		print("One or more files could not be found. Renaming failed with error", e)
-		printNote("Please check 'cplxerror.txt' file for details")
+		printWarning("One or more files could not be found. Please check 'cplxerror.txt' file for details")
 		f.close()
 		return 'complex_GMX.gro', 'complex_GMX.top'
 
@@ -375,8 +428,7 @@ def complexgen(tleapfile):
 			subprocess.run(['acpype', '-p', 'tlpSolvated.prmtop', '-x', 'tlpSolvated.inpcrd'], check=True, stderr=subprocess.STDOUT, stdout=f, text=True)
 		except subprocess.SubprocessError as e:
 			print(e)
-			printWarning("Preparing solvated structure failed with above error. Check 'cplxerror.txt' for details")
-			printNote("This may not affect your setup. If you need it, do it manually")
+			printWarning("Preparing solvated structure failed. Check 'cplxerror.txt' for details")
 			f.close()
 			return 'Complex.gro', 'Complex.top'
 
@@ -392,8 +444,7 @@ def complexgen(tleapfile):
 			shutil.move('tlpSolvated_GMX.gro', 'tlpSolvated.gro')
 			shutil.move('tlpSolvated_GMX.top', 'tlpSolvated.top')
 		except Exception as e:
-			print("One or more files could not be found. Renaming failed with error", e)
-			print("You may want to check 'cplxerror.txt' file for details of the error")
+			pass
 
 	f.close()
 	return 'Complex.gro', 'Complex.top'
@@ -550,9 +601,6 @@ def solvation(grocomplex, topol, selwater, selbt, seld):
 		else:
 			select_cs = "spc216"
 
-		printNote("If successful, the appropriateness of the generated fsolvated.gro should be checked")
-		time.sleep(5)
-
 		# Now set the box with supplied values -d and -bt and solvate
 		print("Setting the box with the default parameters ...")
 		solcmd1 = ['gmx', 'editconf', '-f', grocomplex, '-o', 'complex_new', '-d', change_d, '-bt', change_bt]
@@ -603,16 +651,16 @@ def solvation(grocomplex, topol, selwater, selbt, seld):
 				if select_topol == "topol.top":
 					printNote("Checks Successful. Solvation can now proceed with topol.top!")
 					printNote("The alternative tlptopol.top will be included in the gmxmds folder")
-					time.sleep(5)
 					break
 
-				else:
+				elif select_topol == "tlptopol.top":
 					printNote("Checks successful. Solvation can now proceed with tlptopol.top!")
-					print("We will now backup topol.top as topol.bk and rename tlptopol.top to topol.top")
+					print("Performing backup and renaming of relevant files...")
 					shutil.move('topol.top', 'topol.bk')
+					shutil.move('posre.itp', 'posre.bk')
 					shutil.move('tlptopol.top', 'topol.top')
+					shutil.move('posre_tlptopol.itp', 'posre.itp')
 					select_topol = "topol.top"
-					time.sleep(5)
 					break
 
 		# Now add ions to nutralize the solvated complex
@@ -663,16 +711,17 @@ def insertdetails(file1, file2, identifier):
 	
 	if foundID == "NO":
 		alternativeID = " "
-		if identifier == "[ moleculetype ]":
-			printWarning("Your topol.top file lack [ moleculetype ] header. Please check and make correction if needed")
+		if identifier == "[ moleculetype ]" or identifier == "[ atomtypes ]":
+			printWarning(f"Your topol.top file lack '{identifier}' header. Please check and make correction if needed")
 			alternativeID = "; Include forcefield parameters"
-			printNote("Trying alternative Ligand atomtypes insertion point ...")
+			printNote(f"Trying {alternativeID} as alternative insertion point ...")
 			time.sleep(5)
 
 		elif identifier == "; Include water topology":
-			printWarning("Your topol.top file lack the '; Include water topology' subheading. This is expected if you did not select any water for use with your system. Please check and make correction if needed")
+			printWarning(f"Your topol.top file lack the '{identifier}' subheading.")
+			print("This is expected if you did not select any water for use with your system. Please check and make correction if needed")
 			alternativeID = "[ system ]"
-			printNote("Trying alternative Ligand moleculetype insertion point ...")		
+			printNote(f"Trying {alternativeID} as alternative insertion point ...")		
 			time.sleep(5)
 
 		else:
@@ -687,7 +736,7 @@ def insertdetails(file1, file2, identifier):
 			if nLK.split() == alternativeID.split():
 				foundID = "YES"
 				if alternativeID == "; Include forcefield parameters":
-					countid += 2
+					countid += 3
 				file1readlines.insert(countid, file2read)
 				file1open.seek(0)
 				file1open.writelines(file1readlines)
@@ -696,11 +745,74 @@ def insertdetails(file1, file2, identifier):
 				countid += 1
 
 		if foundID == "NO":
-			printNote("identifier for insertion point for needed information not found in your topol.top.file")
+			printNote("No needed identifiers for insertion of needed information was found in your topol.top.file")
 			printWarning("The setup will most likely fail. Check and make needed corrections")
+		else:
+			print("Insertion using alternative identifier appears successful")
 
 	file1open.close()
 	file2open.close()
+
+
+def udrestraint(structureFile):
+	print('\n')
+	print("To generate restraint on multiple groups or subsection of a group, an index file is needed")
+	print("Please check GROMACS help on how to generate index file with your preferred selections")
+	print('\n')
+	response = input("Type YES/y to generate an index file now. Otherwise press ENTER to continue: ")
+	if response.lower() == "yes" or response.lower() == "y":
+		printNote("Generation of index file in progress ...")
+		print('\n')
+		printNote("After selection, to exit the make_ndx function and save, type q or quit and press ENTER")
+		print('\n')
+		try:
+			subprocess.run(['gmx make_ndx -f ' + structureFile + ' -o indexfile.ndx'], shell=True, stderr=subprocess.STDOUT, check=True, text=True)
+		except subprocess.SubprocessError as e:
+			print(e)
+			printWarning("Something went wrong with above error. Please check")	
+	print('\n')
+
+	ndxfile = []
+	for ndxf in os.listdir():
+		if Path(ndxf).suffix == ".ndx":
+			ndxfile.append(ndxf)
+	
+	if len(ndxfile) == 0:
+		printNote("No index file was generated or found")
+	elif len(ndxfile) == 1:
+		if not ndxfile[0] == "indexfile.ndx":
+			os.rename(ndxfile[0], "indexfile.ndx")
+	elif len(ndxfile) > 1:
+		if not "indexfile.ndx" in os.listdir():
+			printNote("More than one index files were found. Index file will be ignored")
+		else:
+			printNote("More than one index files were found. The file named 'indexfile.ndx' will be used")
+
+	success = 0
+	if not "indexfile.ndx" in os.listdir():
+		try:
+			subprocess.run(['gmx genrestr -f ' + structureFile + ' -o posre_udp.itp'], shell=True, stderr=subprocess.STDOUT, check=True, text=True)
+		except subprocess.SubprocessError as e:
+			print(e)
+			printWarning("Something went wrong with the above error message. Please check")			
+			time.sleep(5)
+			success = 1
+
+	elif "indexfile.ndx" in os.listdir():
+		try:
+			subprocess.run(['gmx genrestr -f ' + structureFile + ' -n indexfile.ndx -o posre_udp.itp'], shell=True, stderr=subprocess.STDOUT, check=True, text=True)
+		except subprocess.SubprocessError as e:
+			print(e)
+			printWarning("Something went wrong with the above error message. Please check")			
+			time.sleep(5)
+			success = 1
+
+	if success == 0:
+		printNote("Generation of user defined restraint file {posre_udp.itp} was successful")
+		return "posre_udp.itp"
+	else:
+		printNote("Generation of user defined restraint file was unsuccessful. Try manually")
+		return structureFile
 
 
 def gmxmdsFChecks(listgmxmds):
@@ -719,6 +831,87 @@ def gmxmdsFChecks(listgmxmds):
 
 	return filestoretain
 
+
+def gmxmdsFClean(gfile):
+	# Removing unnecessary spaces in the file
+	gfcount = 0
+	with open(gfile, "r") as gfr:
+		gfreadlines = gfr.readlines()
+
+	with open(gfile, "w") as gfw:
+		for gline in gfreadlines:
+			glc = gfcount + 1
+			if gline == gfreadlines[-1]:
+				gfw.write(gline)
+				gfcount += 1
+			elif not (gline.split() == [] and gfreadlines[glc].split() == []):
+				gfw.write(gline)
+				gfcount += 1
+			else:
+				gfcount += 1
+
+	return gfile
+
+
+def gmxmdsFEChecks(runsdefaults):
+	print('\n')
+	printWarning("It's appears the process failed to produced all the needed MDS input files")
+	printNote("It's strongly advisable to check, as the error may affect subsequent MDS files generation")
+	print("For more information, Please check the relevant error files as listed below: ")
+	print(">>>>>>>> ligerror.txt in Ligand Directory or Subdirectories")
+	print(">>>>>>>> recerror.txt in Receptor Directory")
+	print(">>>>>>>> cplxerror.txt or cplxBKerror.txt in Complext Directory")
+	print(">>>>>>>> checklog.txt in Solvation Directory")
+
+	print('\n')
+	printNote("If the error has to do the default values, we can attempt to make corrections, and re-generate MDS input files")
+	print("Type YES/y to attempt regeneration, or press ENTER to continue")
+	response = input("Response is: ")
+	if not (response.lower() == "yes" or response.lower() == "y"):
+		printNote("You have choosen not to attempt correction and restart generation")
+		printNote("It is strongly recommended to abort the process and make necessary corrections")
+		confirm = input("Type YES/y to abort or press ENTER to continue anyway: ")
+		if confirm.lower() == "yes" or confirm.lower() == "y":
+			return "abort", runsdefaults
+		else:
+			return "continue", runsdefaults
+	else:
+		print('\n')
+		printNote("You have chosen to attempt correction and restart generation")
+		ndefaults = []
+
+		printNote("PLEASE NOTE YOUR CURRENT DEFAULT VALUES: ")
+		if runsdefaults[5] == "A":
+			print(f"Default mode of processing is Interactive")
+		else:
+			print(f"Default mode of processing is Noninteractive")
+		print(f"Default forcefield is {runsdefaults[0]}")
+		print(f"Default water model is {runsdefaults[1]}")
+		print(f"Default editconf -bt option is {runsdefaults[2]}")
+		print(f"Default editconf -d option is {runsdefaults[3]}")
+		print(f"Default timeout for input() request is {runsdefaults[4]}")
+		print('\n')
+
+		print("Forcefield and water model will be selected Interactively first")
+		print("Then you will have a choice to revert to Noninteractive or maintain Interactive")
+		ndefaults.append("select")
+		ndefaults.append("select")
+
+		print("Type YES/y to adjust the default values of -d, -bt and timeout as may be required")
+		print("Press ENTER to maintain the above default values of -d, -bt and timeout")
+		adjust = input("Response is: ")
+		if adjust.lower() == "yes" or adjust.lower() == "y":
+			def2, def3, def4 = defaults1()
+			
+		ndefaults.append(def2)
+		ndefaults.append(def3)
+		ndefaults.append(def4)
+		if runsdefaults[5] == "A":
+			ndefaults.append("A")
+		else:
+			ndefaults.append("B")
+
+		return "regenerate", ndefaults
 
 def cleanup():
 	""" Cleaning up opencl headers added dueing MDS """

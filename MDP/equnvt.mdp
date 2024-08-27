@@ -1,14 +1,14 @@
-; MDS-NVT Sample file - pyGROMODS-v2024.01 Release
+; MDS-NVT Sample file - pyGROMODS-v2024.02 Release
 
 title                    = NVT simulation (constant number, volume and temperature)
 
 ; Define can be used to control processes
-define          = -DPOSRES
+define                   = -DPOSRES
 
 ; RUN CONTROL PARAMETERS
 integrator               = md
 dt                       = 0.002
-nsteps                   = 5000
+nsteps                   = 50000
 
 ; OUTPUT CONTROL OPTIONS
 nstxout                  = 0   ; No output, except for last frame (coordinates)

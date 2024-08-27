@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-    pyGROMODS-v2023.05.1 Release
+    pyGROMODS-v2024.02 Release
     
             <<<  NO WARRANTY AT ALL!!!  >>>
 
@@ -22,12 +22,20 @@ import subprocess
 from pathlib import Path
 import time
 import shutil
+from datetime import datetime
 
 from gmodsScripts.gmodsHelpers import printWarning, printNote, tinput, cleanup
 
 def nvtSCmds():
     print('\n')
+
+    # Set the starting date and time
+    mdstime = datetime.now()
+    Tstart = mdstime.strftime("%B %d, %Y %H:%M:%S")
+    print(f'MDS Continuation process begins: {Tstart}')
+
     # Set global activation variables to include opncl headers in work subdirectories
+    mdsfiles = os.listdir()
     opencl_activate = 0
 
     # Check existence of opencl files if required
@@ -42,9 +50,9 @@ def nvtSCmds():
 
     # User can set marwarn for grompp if needed
     maxwarn = 0
-    print("The default value for -maxwarn is 0. To change the value: ")
-    print("Type YES/y. Otherwise, press ENTER to continue with the default")
-    response = tinput("Response: ", 20, "n")
+    printNote("The default value for -maxwarn is 0")
+    print("Type YES/y to change the value. Otherwise, press ENTER to continue")
+    response = tinput("Response: ", 60, "n")
     if response.lower() == "yes" or response.lower() == "y":
         while True:
             maxwarn = input("Change maxwarn to: ")
@@ -73,7 +81,11 @@ def nvtSCmds():
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
-    cmdnvt = ['gmx', 'grompp', '-f', '../mdps/equnvt.mdp', '-c', '../EM/minzcg.gro', '-r', '../EM/minzcg.gro', '-p', '../topol.top', '-o', 'equnvt.tpr', '-maxwarn', str(maxwarn)]
+    cmdnvt = []
+    if not 'indexfile.ndx' in mdsfiles:
+        cmdnvt = ['gmx', 'grompp', '-f', '../mdps/equnvt.mdp', '-c', '../EM/minzcg.gro', '-r', '../EM/minzcg.gro', '-p', '../topol.top', '-o', 'equnvt.tpr', '-maxwarn', str(maxwarn)]
+    else:
+        cmdnvt = ['gmx', 'grompp', '-f', '../mdps/equnvt.mdp', '-c', '../EM/minzcg.gro', '-r', '../EM/minzcg.gro', '-n', '../indexfile.ndx', '-p', '../topol.top', '-o', 'equnvt.tpr', '-maxwarn', str(maxwarn)]
 
     try:
         subprocess.run(cmdnvt, stderr=subprocess.STDOUT, stdout=fnvt, check=True, text=True)
@@ -82,7 +94,7 @@ def nvtSCmds():
         print(e)
         printWarning("Something was not right with above error. Checking....")
 
-    if not ('equnvt.tpr' in os.listdir() or 'equnvt.gro' in os.listdir()):
+    if not ('equnvt.tpr' in os.listdir() and 'equnvt.gro' in os.listdir()):
         printWarning("There were errors during Constant Volume Equilibration Phase")
         printNote("It is advisable to abort, and check nvterror.txt file for details")
         response = tinput("To abort type YES/y. Otherwise press ENTER to continue anyway: ", 10, "y")
@@ -114,14 +126,19 @@ def nvtSCmds():
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
-    cmdnpt = ['gmx', 'grompp', '-f', '../mdps/equnpt.mdp', '-c', '../NVT/equnvt.gro', '-r', '../NVT/equnvt.gro', '-p', '../topol.top', '-t', '../NVT/equnvt.cpt', '-o', 'equnpt.tpr', '-maxwarn', str(maxwarn)]
+    cmdnpt = []
+    if not 'indexfile.ndx' in mdsfiles:
+        cmdnpt = ['gmx', 'grompp', '-f', '../mdps/equnpt.mdp', '-c', '../NVT/equnvt.gro', '-r', '../NVT/equnvt.gro', '-p', '../topol.top', '-t', '../NVT/equnvt.cpt', '-o', 'equnpt.tpr', '-maxwarn', str(maxwarn)]
+    else:
+        cmdnpt = ['gmx', 'grompp', '-f', '../mdps/equnpt.mdp', '-c', '../NVT/equnvt.gro', '-r', '../NVT/equnvt.gro', '-n', '../indexfile.ndx', '-p', '../topol.top', '-t', '../NVT/equnvt.cpt', '-o', 'equnpt.tpr', '-maxwarn', str(maxwarn)]
+
     try:
         subprocess.run(cmdnpt, stderr=subprocess.STDOUT, stdout=fnpt, check=True, text=True)
         subprocess.run(['gmx', 'mdrun', '-deffnm', 'equnpt'], stderr=subprocess.STDOUT, stdout=fnpt, check=True, text=True)
     except subprocess.SubprocessError as e:
         printWarning("Something was not right. Checking...")
 
-    if not ('equnpt.tpr' in os.listdir() or 'equnpt.gro' in os.listdir()):
+    if not ('equnpt.tpr' in os.listdir() and 'equnpt.gro' in os.listdir()):
         printWarning("There were errors during Constant Pressure Equilibration Phase")
         printNote("It is advisable to abort. Please check npterror.txt file for details")
         response = tinput("To abort type YES/y. Otherwise press ENTER to continue anyway: ", 10, "y")
@@ -153,14 +170,19 @@ def nvtSCmds():
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
-    cmdeq = ['gmx', 'grompp', '-f', '../mdps/equpmd.mdp', '-c', '../NPT/equnpt.gro', '-r', '../NPT/equnpt.gro', '-p', '../topol.top', '-t', '../NPT/equnpt.cpt', '-o', 'equpmd.tpr', '-maxwarn', str(maxwarn)]
+    cmdeq = []
+    if not 'indexfile.ndx' in mdsfiles:
+        cmdeq = ['gmx', 'grompp', '-f', '../mdps/equpmd.mdp', '-c', '../NPT/equnpt.gro', '-r', '../NPT/equnpt.gro', '-p', '../topol.top', '-t', '../NPT/equnpt.cpt', '-o', 'equpmd.tpr', '-maxwarn', str(maxwarn)]
+    else:
+        cmdeq = ['gmx', 'grompp', '-f', '../mdps/equpmd.mdp', '-c', '../NPT/equnpt.gro', '-r', '../NPT/equnpt.gro', '-n', '../indexfile.ndx', '-p', '../topol.top', '-t', '../NPT/equnpt.cpt', '-o', 'equpmd.tpr', '-maxwarn', str(maxwarn)]
+
     try:
         subprocess.run(cmdeq, stderr=subprocess.STDOUT, stdout=feq, check=True, text=True)
         subprocess.run(['gmx', 'mdrun', '-deffnm', 'equpmd'], stderr=subprocess.STDOUT, stdout=feq, check=True, text=True)
     except subprocess.SubprocessError as e:
         printWarning("Something was not right. Checking...")
 
-    if not ('equpmd.tpr' in os.listdir() or 'equpmd.gro' in os.listdir()):
+    if not ('equpmd.tpr' in os.listdir() and 'equpmd.gro' in os.listdir()):
         printWarning("There were errors during Equilibration Production MD Phase")
         printNote("It is advisable to abort, and check eqerror.txt file for details")
         response = tinput("To abort type YES/y. Otherwise press ENTER to continue anyway ", 10, "y")
@@ -192,7 +214,11 @@ def nvtSCmds():
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
-    cmdpmd = ['gmx', 'grompp', '-f', '../mdps/pmds.mdp', '-c', '../EMD/equpmd.gro', '-r', '../EMD/equpmd.gro', '-p', '../topol.top', '-t', '../EMD/equpmd.cpt', '-o', 'pmds.tpr', '-maxwarn', str(maxwarn)]
+    cmdpmd = []
+    if not 'indexfile.ndx' in mdsfiles:
+        cmdpmd = ['gmx', 'grompp', '-f', '../mdps/pmds.mdp', '-c', '../EMD/equpmd.gro', '-r', '../EMD/equpmd.gro', '-p', '../topol.top', '-t', '../EMD/equpmd.cpt', '-o', 'pmds.tpr', '-maxwarn', str(maxwarn)]
+    else:
+        cmdpmd = ['gmx', 'grompp', '-f', '../mdps/pmds.mdp', '-c', '../EMD/equpmd.gro', '-r', '../EMD/equpmd.gro', '-n', '../indexfile.ndx', '-p', '../topol.top', '-t', '../EMD/equpmd.cpt', '-o', 'pmds.tpr', '-maxwarn', str(maxwarn)]
 
     try:
         subprocess.run(cmdpmd, stderr=subprocess.STDOUT, stdout=fpmd, check=True, text=True)
@@ -200,7 +226,7 @@ def nvtSCmds():
     except subprocess.SubprocessError as e:
         printWarning("Something was not right. Checking...")
 
-    if not ('pmds.tpr' in os.listdir() or 'pmds.gro' in os.listdir()):
+    if not ('pmds.tpr' in os.listdir() and 'pmds.gro' in os.listdir()):
         printWarning("There were errors during Production MD Phase. Check pmderror.txt file for details")
     else:
         printNote("Production MD Successfully Completed")
@@ -242,14 +268,25 @@ def nvtSCmds():
     else:
         os.chdir('../../')
 
-    time.sleep(5)
+    time.sleep(2)
 
     # End
     printNote("Ending. Continuation MDS Job Completed Successfully")
 
+    # Set the ending date and time
+    mdstime2 = datetime.now()
+    Tends = mdstime2.strftime("%B %d, %Y %H:%M:%S")
+    print(f'MDS Continuation Process ends: {Tends}')
+
 
 def nptSCmds():
+    # Set the starting date and time
+    mdstime = datetime.now()
+    Tstart = mdstime.strftime("%B %d, %Y %H:%M:%S")
+    print(f'MDS Continuation process begins: {Tstart}')
+
     # Set global activation variables to include opncl headers in work subdirectories
+    mdsfiles = os.listdir()
     opencl_activate = 0
 
     # Check existence of opencl files if required
@@ -266,7 +303,7 @@ def nptSCmds():
     maxwarn = 0
     print("The default value for -maxwarn is 0. You may wish to increase this as needed")
     print("To change this value, type YES/y. Otherwise, press ENTER to continue with the default")
-    response = tinput("Response: ", 20, "n")
+    response = tinput("Response: ", 60, "n")
     if response.lower() == "yes" or response.lower() == "y":
         while True:
             maxwarn = input("Change maxwarn to: ")
@@ -276,7 +313,6 @@ def nptSCmds():
             else:
                 print(f"maxwarn has been changed to: {maxwarn}")
                 break
-
     time.sleep(5)
 
     #####################
@@ -297,14 +333,19 @@ def nptSCmds():
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
-    cmdnpt = ['gmx', 'grompp', '-f', '../mdps/equnpt.mdp', '-c', '../NVT/equnvt.gro', '-r', '../NVT/equnvt.gro', '-p', '../topol.top', '-t', '../NVT/equnvt.cpt', '-o', 'equnpt.tpr', '-maxwarn', str(maxwarn)]
+    cmdnpt = []
+    if not 'indexfile.ndx' in mdsfiles:
+        cmdnpt = ['gmx', 'grompp', '-f', '../mdps/equnpt.mdp', '-c', '../NVT/equnvt.gro', '-r', '../NVT/equnvt.gro', '-p', '../topol.top', '-t', '../NVT/equnvt.cpt', '-o', 'equnpt.tpr', '-maxwarn', str(maxwarn)]
+    else:
+        cmdnpt = ['gmx', 'grompp', '-f', '../mdps/equnpt.mdp', '-c', '../NVT/equnvt.gro', '-r', '../NVT/equnvt.gro', '-n', '../indexfile.ndx', '-p', '../topol.top', '-t', '../NVT/equnvt.cpt', '-o', 'equnpt.tpr', '-maxwarn', str(maxwarn)]
+
     try:
         subprocess.run(cmdnpt, stderr=subprocess.STDOUT, stdout=fnpt, check=True, text=True)
         subprocess.run(['gmx', 'mdrun', '-deffnm', 'equnpt'], stderr=subprocess.STDOUT, stdout=fnpt, check=True, text=True)
     except subprocess.SubprocessError as e:
         printWarning("Something was not right. Checking...")
 
-    if not ('equnpt.tpr' in os.listdir() or 'equnpt.gro' in os.listdir()):
+    if not ('equnpt.tpr' in os.listdir() and 'equnpt.gro' in os.listdir()):
         printWarning("There were errors during Constant Pressure Equilibration Phase")
         printNote("It is advisable to abort. Please check npterror.txt file for details")
         response = tinput("To abort type YES/y. Otherwise press ENTER to continue anyway: ", 10, "y")
@@ -336,14 +377,19 @@ def nptSCmds():
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
-    cmdeq = ['gmx', 'grompp', '-f', '../mdps/equpmd.mdp', '-c', '../NPT/equnpt.gro', '-r', '../NPT/equnpt.gro', '-p', '../topol.top', '-t', '../NPT/equnpt.cpt', '-o', 'equpmd.tpr', '-maxwarn', str(maxwarn)]
+    cmdeq = []
+    if not 'indexfile.ndx' in mdsfiles:
+        cmdeq = ['gmx', 'grompp', '-f', '../mdps/equpmd.mdp', '-c', '../NPT/equnpt.gro', '-r', '../NPT/equnpt.gro', '-p', '../topol.top', '-t', '../NPT/equnpt.cpt', '-o', 'equpmd.tpr', '-maxwarn', str(maxwarn)]
+    else:
+        cmdeq = ['gmx', 'grompp', '-f', '../mdps/equpmd.mdp', '-c', '../NPT/equnpt.gro', '-r', '../NPT/equnpt.gro', '-n', '../indexfile.ndx', '-p', '../topol.top', '-t', '../NPT/equnpt.cpt', '-o', 'equpmd.tpr', '-maxwarn', str(maxwarn)]
+
     try:
         subprocess.run(cmdeq, stderr=subprocess.STDOUT, stdout=feq, check=True, text=True)
         subprocess.run(['gmx', 'mdrun', '-deffnm', 'equpmd'], stderr=subprocess.STDOUT, stdout=feq, check=True, text=True)
     except subprocess.SubprocessError as e:
         printWarning("Something was not right. Checking...")
 
-    if not ('equpmd.tpr' in os.listdir() or 'equpmd.gro' in os.listdir()):
+    if not ('equpmd.tpr' in os.listdir() and 'equpmd.gro' in os.listdir()):
         printWarning("There were errors during Equilibration Production MD Phase")
         printNote("It is advisable to abort, and check eqerror.txt file for details")
         response = tinput("To abort type YES/y. Otherwise press ENTER to continue anyway ", 10, "y")
@@ -375,7 +421,11 @@ def nptSCmds():
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
-    cmdpmd = ['gmx', 'grompp', '-f', '../mdps/pmds.mdp', '-c', '../EMD/equpmd.gro', '-r', '../EMD/equpmd.gro', '-p', '../topol.top', '-t', '../EMD/equpmd.cpt', '-o', 'pmds.tpr', '-maxwarn', str(maxwarn)]
+    cmdpmd = []
+    if not 'indexfile.ndx' in mdsfiles:
+        cmdpmd = ['gmx', 'grompp', '-f', '../mdps/pmds.mdp', '-c', '../EMD/equpmd.gro', '-r', '../EMD/equpmd.gro', '-p', '../topol.top', '-t', '../EMD/equpmd.cpt', '-o', 'pmds.tpr', '-maxwarn', str(maxwarn)]
+    else:
+        cmdpmd = ['gmx', 'grompp', '-f', '../mdps/pmds.mdp', '-c', '../EMD/equpmd.gro', '-r', '../EMD/equpmd.gro', '-n', '../indexfile.ndx', '-p', '../topol.top', '-t', '../EMD/equpmd.cpt', '-o', 'pmds.tpr', '-maxwarn', str(maxwarn)]
 
     try:
         subprocess.run(cmdpmd, stderr=subprocess.STDOUT, stdout=fpmd, check=True, text=True)
@@ -383,7 +433,7 @@ def nptSCmds():
     except subprocess.SubprocessError as e:
         printWarning("Something was not right. Checking...")
 
-    if not ('pmds.tpr' in os.listdir() or 'pmds.gro' in os.listdir()):
+    if not ('pmds.tpr' in os.listdir() and 'pmds.gro' in os.listdir()):
         printWarning("There were errors during Production MD Phase. Check pmderror.txt file for details")
     else:
         printNote("Production MD Successfully Completed")
@@ -425,14 +475,25 @@ def nptSCmds():
     else:
         os.chdir('../../')
 
-    time.sleep(5)
+    time.sleep(2)
 
     # End
     printNote("Ending. Continuation MDS Job Completed Successfully")
 
+    # Set the ending date and time
+    mdstime2 = datetime.now()
+    Tends = mdstime2.strftime("%B %d, %Y %H:%M:%S")
+    print(f'MDS Continuation process ends: {Tends}')
+
 
 def emdSCmds():
+    # Set the starting date and time
+    mdstime = datetime.now()
+    Tstart = mdstime.strftime("%B %d, %Y %H:%M:%S")
+    print(f'MDS Continuation process begins: {Tstart}')
+
     # Set global activation variables to include opncl headers in work subdirectories
+    mdsfiles = os.listdir()
     opencl_activate = 0
 
     # Check existence of opencl files if required
@@ -449,7 +510,7 @@ def emdSCmds():
     maxwarn = 0
     print("The default value for -maxwarn is 0. You may wish to increase this as needed")
     print("To change this value, type YES/y. Otherwise, press ENTER to continue with the default")
-    response = tinput("Response: ", 20, "n")
+    response = tinput("Response: ", 60, "n")
     if response.lower() == "yes" or response.lower() == "y":
         while True:
             maxwarn = input("Change maxwarn to: ")
@@ -480,14 +541,19 @@ def emdSCmds():
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
-    cmdeq = ['gmx', 'grompp', '-f', '../mdps/equpmd.mdp', '-c', '../NPT/equnpt.gro', '-r', '../NPT/equnpt.gro', '-p', '../topol.top', '-t', '../NPT/equnpt.cpt', '-o', 'equpmd.tpr', '-maxwarn', str(maxwarn)]
+    cmdeq = []
+    if not 'indexfile.ndx' in mdsfiles:
+        cmdeq = ['gmx', 'grompp', '-f', '../mdps/equpmd.mdp', '-c', '../NPT/equnpt.gro', '-r', '../NPT/equnpt.gro', '-p', '../topol.top', '-t', '../NPT/equnpt.cpt', '-o', 'equpmd.tpr', '-maxwarn', str(maxwarn)]
+    else:
+        cmdeq = ['gmx', 'grompp', '-f', '../mdps/equpmd.mdp', '-c', '../NPT/equnpt.gro', '-r', '../NPT/equnpt.gro', '-n', '../indexfile.ndx', '-p', '../topol.top', '-t', '../NPT/equnpt.cpt', '-o', 'equpmd.tpr', '-maxwarn', str(maxwarn)]
+
     try:
         subprocess.run(cmdeq, stderr=subprocess.STDOUT, stdout=feq, check=True, text=True)
         subprocess.run(['gmx', 'mdrun', '-deffnm', 'equpmd'], stderr=subprocess.STDOUT, stdout=feq, check=True, text=True)
     except subprocess.SubprocessError as e:
         printWarning("Something was not right. Checking...")
 
-    if not ('equpmd.tpr' in os.listdir() or 'equpmd.gro' in os.listdir()):
+    if not ('equpmd.tpr' in os.listdir() and 'equpmd.gro' in os.listdir()):
         printWarning("There were errors during Equilibration Production MD Phase")
         printNote("It is advisable to abort, and check eqerror.txt file for details")
         response = tinput("To abort type YES/y. Otherwise press ENTER to continue anyway ", 10, "y")
@@ -519,7 +585,11 @@ def emdSCmds():
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
-    cmdpmd = ['gmx', 'grompp', '-f', '../mdps/pmds.mdp', '-c', '../EMD/equpmd.gro', '-r', '../EMD/equpmd.gro', '-p', '../topol.top', '-t', '../EMD/equpmd.cpt', '-o', 'pmds.tpr', '-maxwarn', str(maxwarn)]
+    cmdpmd = []
+    if not 'indexfile.ndx' in mdsfiles:
+        cmdpmd = ['gmx', 'grompp', '-f', '../mdps/pmds.mdp', '-c', '../EMD/equpmd.gro', '-r', '../EMD/equpmd.gro', '-p', '../topol.top', '-t', '../EMD/equpmd.cpt', '-o', 'pmds.tpr', '-maxwarn', str(maxwarn)]
+    else:
+        cmdpmd = ['gmx', 'grompp', '-f', '../mdps/pmds.mdp', '-c', '../EMD/equpmd.gro', '-r', '../EMD/equpmd.gro', '-n', '../indexfile.ndx', '-p', '../topol.top', '-t', '../EMD/equpmd.cpt', '-o', 'pmds.tpr', '-maxwarn', str(maxwarn)]
 
     try:
         subprocess.run(cmdpmd, stderr=subprocess.STDOUT, stdout=fpmd, check=True, text=True)
@@ -527,7 +597,7 @@ def emdSCmds():
     except subprocess.SubprocessError as e:
         printWarning("Something was not right. Checking...")
 
-    if not ('pmds.tpr' in os.listdir() or 'pmds.gro' in os.listdir()):
+    if not ('pmds.tpr' in os.listdir() and 'pmds.gro' in os.listdir()):
         printWarning("There were errors during Production MD Phase. Check pmderror.txt file for details")
     else:
         printNote("Production MD Successfully Completed")
@@ -569,14 +639,25 @@ def emdSCmds():
     else:
         os.chdir('../../')
 
-    time.sleep(5)
+    time.sleep(2)
 
     # End
     printNote("Ending. Continuation MDS Job Completed Successfully")
 
+    # Set the ending date and time
+    mdstime2 = datetime.now()
+    Tends = mdstime2.strftime("%B %d, %Y %H:%M:%S")
+    print(f'MDS Continuation process ends: {Tends}')
+
 
 def pmdSCmds():
+    # Set the starting date and time
+    mdstime = datetime.now()
+    Tstart = mdstime.strftime("%B %d, %Y %H:%M:%S")
+    print(f'MDS Continuation process begins: {Tstart}')
+
     # Set global activation variables to include opncl headers in work subdirectories
+    mdsfiles = os.listdir()
     opencl_activate = 0
 
     # Check existence of opencl files if required
@@ -593,7 +674,7 @@ def pmdSCmds():
     maxwarn = 0
     print("The default value for -maxwarn is 0. You may wish to increase this as needed")
     print("To change this value, type YES/y. Otherwise, press ENTER to continue with the default")
-    response = tinput("Response: ", 20, "n")
+    response = tinput("Response: ", 60, "n")
     if response.lower() == "yes" or response.lower() == "y":
         while True:
             maxwarn = input("Change maxwarn to: ")
@@ -624,7 +705,11 @@ def pmdSCmds():
         for ocl in oclfiles:
             os.system('cp ../../opencl/' + ocl + ' ./')
 
-    cmdpmd = ['gmx', 'grompp', '-f', '../mdps/pmds.mdp', '-c', '../EMD/equpmd.gro', '-r', '../EMD/equpmd.gro', '-p', '../topol.top', '-t', '../EMD/equpmd.cpt', '-o', 'pmds.tpr', '-maxwarn', str(maxwarn)]
+    cmdpmd = []
+    if not 'indexfile.ndx' in mdsfiles:
+        cmdpmd = ['gmx', 'grompp', '-f', '../mdps/pmds.mdp', '-c', '../EMD/equpmd.gro', '-r', '../EMD/equpmd.gro', '-p', '../topol.top', '-t', '../EMD/equpmd.cpt', '-o', 'pmds.tpr', '-maxwarn', str(maxwarn)]
+    else:
+        cmdpmd = ['gmx', 'grompp', '-f', '../mdps/pmds.mdp', '-c', '../EMD/equpmd.gro', '-r', '../EMD/equpmd.gro', '-n', '../indexfile.ndx', '-p', '../topol.top', '-t', '../EMD/equpmd.cpt', '-o', 'pmds.tpr', '-maxwarn', str(maxwarn)]
 
     try:
         subprocess.run(cmdpmd, stderr=subprocess.STDOUT, stdout=fpmd, check=True, text=True)
@@ -632,7 +717,7 @@ def pmdSCmds():
     except subprocess.SubprocessError as e:
         printWarning("Something was not right. Checking...")
 
-    if not ('pmds.tpr' in os.listdir() or 'pmds.gro' in os.listdir()):
+    if not ('pmds.tpr' in os.listdir() and 'pmds.gro' in os.listdir()):
         printWarning("There were errors during Production MD Phase. Check pmderror.txt file for details")
     else:
         printNote("Production MD Successfully Completed")
@@ -674,7 +759,12 @@ def pmdSCmds():
     else:
         os.chdir('../../')
 
-    time.sleep(5)
+    time.sleep(2)
 
     # End
     printNote("Ending. Continuation MDS Job Completed Successfully")
+
+    # Set the ending date and time
+    mdstime2 = datetime.now()
+    Tends = mdstime2.strftime("%B %d, %Y %H:%M:%S")
+    print(f'MDS Continuation process ends: {Tends}')

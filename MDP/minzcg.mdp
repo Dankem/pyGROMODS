@@ -1,24 +1,24 @@
-; MDS-mCG Sample file - pyGROMODS-v2024.01 Release
+; MDS-mCG Sample file - pyGROMODS-v2024.02 Release 
 
-title                    = Energy minimization
+title                   = Energy minimization
 
 ; Define can be used to control processes
-; define          = -DPOSRES
+; define                = -DPOSRES
 
 ; Parameters describing what to do, when to stop and what to save
-integrator	= cg		    ; Algorithm (cg = conjugate gradiennt minimization)
-emtol		= 1.0		          ; Stop minimization when the maximum force is 1.0 kJ/mol
-nstcgsteep 	= 1000
-nsteps		= 5000		      ; Maximum number of (minimization) steps to perform
-nstenergy	= 1		          ; Write energies to disk every nstenergy steps
+integrator              = cg		    ; Algorithm (cg = conjugate gradiennt minimization)
+emtol                   = 1.0		    ; Stop minimization when the maximum force is 1.0 kJ/mol
+nstcgsteep 	            = 1000
+nsteps		            = 20000		    ; Maximum number of (minimization) steps to perform
+nstenergy	            = 1		        ; Write energies to disk every nstenergy steps
 
 ; Parameters to find the neighbors of each atom and calculate the interactions
-ns_type		= simple	      ; Method to determine neighbor list (simple, grid)
-coulombtype	= cut-off	    ; Treatment of long range electrostatic interactions
-rlist = 1.5
-rcoulomb	= 1.5		        ; long range electrostatic cut-off
-rvdw		= 1.5		          ; long range Van der Waals cut-off
-constraints	= none		    ; Bond types to replace by constraints
-pbc		= xyz		            ; Periodic Boundary Conditions (yes/no)
+ns_type		            = simple	    ; Method to determine neighbor list (simple, grid)
+coulombtype	            = pme	        ; Treatment of long range electrostatic interactions
+rlist                   = 1.5
+rcoulomb	            = 1.5		    ; long range electrostatic cut-off
+rvdw		            = 1.5		    ; long range Van der Waals cut-off
+constraints	            = none		    ; Bond types to replace by constraints
+pbc		                = xyz		    ; Periodic Boundary Conditions (yes/no)
 
 

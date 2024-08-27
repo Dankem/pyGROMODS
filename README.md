@@ -1,4 +1,4 @@
-# pyGROMODS-v2024.01 Release
+# pyGROMODS-v2024.02 Release
 <<<<<<< HEAD
 #### Video Demo:  https://youtu.be/I4OKc6uVx1M
 =======
@@ -157,6 +157,15 @@
 				f. Alternatively, though not recommended, you can create 'opencl' folder inside 'MDSHOME' directory and copy content of OpenCL folder into it
 		7). On the platform, MDSrun page, click MDSrun to run the MD Simulation.
 
+## MDS FILES IN gmxmds FOLDER:
+	You can find the final processed files for MDS in "gmxmds" folder. This folder contains the following:
+		1). A compulsory solvated or unsolvated structure file (fsolvated.gro or usolvated.gro)
+		2). At least a compulsory topology file (topol.top), and if succefully generated and not used, an additional GROMACS compatible Tleap (tlptopol.top) file will be present. 
+		3). Where applicable, ligand topology files (Atomtypes and moleculetypes) are present.
+		4). A posre.itp file and/or posre_udp.itp file. When dealing with proteins with multiple chains, each chain will have its own posre file which will be included in posre.itp file.
+		5). A "not4mds" subfolder, containing files that are considered not needed for MDS runs.
+		6). A "backup" subfolder, containing files that can be used to replace appropriate file that are needed for MDS. Where applicable in case of multiple chains, read comments inside posre.itp file to use chains topology backup approriately.
+		
 ## EDITABLE FILES:
 	You can edit the files contained in the following folders as needed. However, before editing any of the files, backup these original files into a safe place. They are:
 	***FILES IN gmodsTSF FOLDERS***

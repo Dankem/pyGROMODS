@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-    pyGROMODS-v2024.01 Release
+    pyGROMODS-v2024.02 Release
 
           <<<  NO WARRANTY AT ALL!!!  >>>
 
@@ -24,20 +24,40 @@ import time
 import shutil
 import random
 import string
+from datetime import datetime
+from tkinter import Tk, messagebox
 
-from gmodsScripts.gmodsHelpers import ligtopol, receptopol, topolsplit, indexoflines, complexgen, pdbcatogro, solvation, insertdetails, printWarning, printNote, tinput, defaults1, defaults2, gmxmdsFChecks
+from gmodsScripts.gmodsHelpers import ligtopol, receptopol, topolsplit, indexoflines, complexgen, pdbcatogro, solvation, insertdetails, printWarning, printNote, tinput, defaults1, defaults2, udrestraint, gmxmdsFChecks, gmxmdsFClean, gmxmdsFEChecks
 
-from gmodsScripts.gmodsTLptopol import TLtopol
+from gmodsScripts.gmodsTLptopol import TLtopol, tlpfinal
 from gmodsScripts.gmodsTScheck import Checkligtop
 from gmodsScripts.gmodsOPLStop import OPLStop, OPLSacpype
 
 def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
-	# Set some environment variables
+	# Send out popup message to capture user's attention to a need for final setup
+	messages = "WE SHALL CHECK YOUR UPLOADE FILES FOR CORRECTNESS. AT THE END, CONFIRMATION IS REQUIRED TO PROCEED"
+
+	crp = Tk()
+	crp.title("MDS INPUT FILES GENERATION!!!")
+	crp.withdraw()
+	crp.attributes("-topmost", True)
+	crp.geometry("250x750")
+
+	checkmessage = messagebox.askokcancel("IMPORTANT:", f"{messages} \n\n CLICK OK PLEASE")
+	crp.destroy()
+	if not checkmessage == True:
+		raise Exception("Operation Interrupted by User. Make necessary corrections and restart")
+	else:
+		printNote("Please respond to questions as appropriate")
+	time.sleep(5)
 	print('\n')
+
+	# Set some environment variables
 	scriptDIR = appDIR
 	GMX_MDS = gmxDIR
 
 	print(f"User working directory set to: {GMX_MDS}")
+	print('\n')
 
 	# Set global variable to access user supplied topology file(s)
 	TFF = 0
@@ -46,25 +66,24 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 	# forcefields & water (select), -bt (triclinic), -d (0.1), and timeout (60)
 	defaults = fdefaults 
 	
-	printNote("Let us check again your selected default values ..... ")
-	
+	printNote("Let us check again your selected default values ..... ")	
 	print(f"Default forcefield is {defaults[0]}")
 	print(f"Default water model is {defaults[1]}")
 	print(f"Default editconf -bt option is {defaults[2]}")
 	print(f"Default editconf -d option is {defaults[3]}")
 	print(f"Default timeout for input() request is {defaults[4]}")
+	print('\n')
 
 	if defaults[5] == "A":
-		printNote("Your selected default mode for generating input file is Interractive")
-		response = tinput("To revert to Noninteractive mode type YES/y: ", defaults[4], "n")
+		printNote("Your selected default mode: Interractive")
+		response = tinput("To revert to Noninteractive type YES/y: ", defaults[4], "n")
 		if response.lower() == "yes" or response.lower() == "y":
-			defaults[0] = "amber99sb"
-			defaults[1] = "tip3p"
-			defaults[5] = "C"
-			printNote("You have changed to pdb2gmx non-interactive mode")
+			defaults[5] = "B"
+			printNote("You have changed to Noninteractive mode")
+			print("Your preferred forcefield and water model will be autodetected following your first interactive selection")
 	else:
-		printNote("Your selected default mode for generating input file is Noninterractive")
-		response = tinput("To revert back to Interactive mode type YES/y: ", defaults[4], "n")
+		printNote("Your selected default mode: Noninterractive")
+		response = tinput("To revert back to Interactive type YES/y: ", defaults[4], "n")
 		if response.lower() == "yes" or response.lower() == "y":
 			defaults[0] = "select"
 			defaults[1] = "select"
@@ -129,83 +148,125 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 			for Tfile in Tsdirlist:
 				Tdir = os.path.join(fPDB, 'Ligsff', fileT, Tfile)
 				if os.path.isdir(Tdir):
-					if not (Tfile == "Amber" or Tfile == "Charmm" or Tfile == "Gromos" or Tfile == "Opls"):
-						print(f"{Tfile} could not be identify with any forcefields in gromacs")
-						print("The uploaded ligand topology will be ignored for this pair")
+					if Tfile.lower() == "amber" or Tfile.lower() == "charmm" or Tfile.lower() == "gromos" or Tfile.lower() == "opls":
+						printNote("PLEASE NOTE!!!")
+						print(f">>>>> {Tfile} is your preferred forcefield group for this pair of receptor - ligand")
+						print(">>>>> Make sure the uploaded ligand topology was generated using similar forcefield")
+
+					elif Tfile.lower() == "select":
+						printNote("PLEASE NOTE!!!")
+						print(f"Interactively {Tfile} forcefield for this pair of receptor - ligand")
+						print("You must chose forcefield compatible with your uploaded ligand topology")
+
+					else:
+						printWarning("NOTE WARNING!!!")
+						print(f">>>>> {Tfile} could not be identify with any forcefields in gromacs")
+						print(">>>>> The uploaded ligand topology will be ignored for this pair")
 						shutil.rmtree(Tdir)
 						continue
 
 					listTdir = os.listdir(Tdir)
 					if not len(listTdir) == 1:
-						print("Expecting one topology file per subdirectory, but found", len(listTdir))
-						print("The uploaded ligand topology will be ignored for this pair")
+						printWarning("NOTE WARNING!!!")
+						print(">>>>> Expecting one topology file per subdirectory, but found", len(listTdir))
+						print(">>>>> The uploaded ligand topology will be ignored for this pair")
 						shutil.rmtree(Tdir)
 						continue
-
+ 
 					for Topf in listTdir:
 						if not (Path(Topf).suffix == ".itp" or Path(Topf).suffix == ".top"):
-							print("Sorry, unacceptable topology file format detected. Must be .itp or .top")
-							print("The uploaded ligand topology will be ignored for this pair")
+							printWarning("NOTE WARNING!!!")
+							print(">>>>> Sorry, unacceptable topology file format detected. Must be .itp or .top")
+							print(">>>>> The uploaded ligand topology will be ignored for this pair")
 							shutil.rmtree(Tdir)
-							continue
+							break
 
 						else:
 							checkindex = indexoflines(os.path.join(fPDB, 'Ligsff', fileT, Tfile, Topf))
 							filecheck = open(os.path.join(fPDB, 'Ligsff', fileT, Tfile, Topf), "r")
 							readcheck = filecheck.readlines()
-							try:
-								if not 'atomtypes' in readcheck[checkindex['atomtypes']].split():
-									raise Exception("Sorry, an uploaded topology file lack [ atomtypes ] subheading")
-								elif not 'moleculetype' in readcheck[checkindex['moleculetype']].split():
-									raise Exception("Sorry, an uploaded topology file lack [ moleculetype ] subheading")
-								elif not 'system' in readcheck[checkindex['system']].split():
-									raise Exception("Sorry, an uploaded topology file lack [ system ] subheading")
-								else:
-									print(f"{Topf} an acceptable uploaded ligand topology file detected")
-							except Exception as e:
-								print(f"Checking a user supplied ligand topology file failed with error {e}")
-								printNote("This file may lack ['atomtypes'], ['moleculetype'] and/or [ system ] subheader")
-								printNote("Check and include the subheading with or without expected accompanied values")
-								print("To abort, type YES/y. Otherwise the process will ignore uploaded ligand topology")
-								response = tinput("Response: ", defaults[4], "n")						
-								if not (response.lower() == "yes" or response.lower() == "y"):
-									print(Topf, "topology file will be ignored for this pair")
-									filecheck.close()
-									shutil.rmtree(Tdir)
-									continue
-								else:
-									raise Exception("Make necessary corrections and restart")
+							checklist = ['atomtypes', 'moleculetype', 'system']
+							nckl = 0
+							eckl = 0
+							for ckl in checklist:
+								try:
+									if not ckl in readcheck[checkindex[ckl]].split():
+										nckl += 1
+								except Exception as e:
+									eckl += 1
 							filecheck.close()
-					numtp += 1
+
+							if nckl == 0 and eckl == 0:
+								print(f"{Topf}, an acceptable uploaded ligand topology file detected")
+								numtp += 1
+								break
+							else:
+								printWarning("NOTE WARNING!!!")
+								print(">>>>> Checking a user supplied ligand topology file failed with errors")
+								print(">>>>> This file may lack ['atomtypes'], ['moleculetype'] and/or [ system ] subheader")
+								print(">>>>> The uploaded ligand topology will be ignored for this pair")
+								shutil.rmtree(Tdir)
+								break
+								
 				elif os.path.isfile(Tdir):
-    				# Check for forcefield selection and generate water model list
+					# Check for forcefield selection and generate water model list
 					if Tfile[0:5].capitalize() == "Amber" or Tfile[0:6].capitalize() == "Charmm" or Tfile[0:6].capitalize() == "Gromos" or Tfile[0:4].capitalize() == "Opls":
 						numff += 1
 						wmodel = dictff[Tfile]
 						print(f"{Tfile} forcefiled detected for this pair of receptor - ligand")
 
+					elif Tfile.lower() == "select_ff":
+						numff += 1
+						wmodel.append("select_ww")
+						print(f"Interactively '{Tfile[0:6]}' forcefield detected for this pair of receptor - ligand")
+
+					else:
+						pass	
+
 			# Check if water model is present and correspond to selected ff
 			for Wfile in Tsdirlist:
-				if Wfile in wmodel:
+				if Wfile in wmodel and not Wfile.lower() == "select_ww":
 					numfw += 1
 					print(f"{Wfile} water model detected for this pair of receptor - ligand")
 
+				elif Wfile in wmodel and Wfile.lower() == "select_ww":
+					numfw += 1
+					print(f"Interactively '{Wfile[0:6]}' water model detected for this pair of receptor - ligand")
+
+			revert_mode = 0
 			if numff > 1 or numfw > 1:
-				raise Exception("More than one forcefield or water model detected for a pair")
+				printWarning("NOTE WARNING!!!")
+				print(">>>>> More than one forcefield or water model detected for this pair")
+				print(">>>>> We shall attempt to revert to interactive mode for this pair")
+				revert_mode += 1
+
 			elif numff == 0 or numfw == 0:
-				raise Exception("Needed forcefield and/or its corresponding water model is missing for a pair")
+				printWarning("NOTE WARNING!!!")
+				print(">>>>> Needed forcefield and/or its corresponding water model is missing for this pair")
+				print(">>>>> We shall attempt to revert to interactive mode for this pair")
+				revert_mode += 1
+
+			if revert_mode > 0:			
+				for Tfile in Tsdirlist:
+					Tdir = os.path.join(Tsubdir, Tfile)
+					if os.path.isdir(Tdir):
+						os.rename(Tdir, os.path.join(Tsubdir, "Select"))
+					else:
+						os.remove(Tdir)
+
+				fileff = open(os.path.join(Tsubdir, 'select_ff'), "w")
+				numff = 0
+				fileww = open(os.path.join(Tsubdir, 'select_ww'), "w")
+				numfw = 0
+				fileff.close()
+				fileww.close()
+				numfc += 1
+
 			else:
 				numfc += 1
 		else:
 			raise Exception("Sorry, a file detected where subdirectory should be. Please setroute again and rerun")
-
-	if not len(RECfolders) == len(LIGfolders):
-		raise Exception("Matching pairs of receptor and ligand could not be detected. Please cross check")
-
-	printNote("You have matching pairs of receptor and ligand. A solvated complex will now be generated for each pair. Are you sure you want to continue?")
-	response = tinput("Type YES/y to continue or press ENTER to abort: ", defaults[4], "y")
-	if not (response.lower() == "yes" or response.lower() == "y"):
-		raise Exception("Process Abort!!!. Setroute again and upload required files")
+		print('\n')
 
 	if not len(LIGfolders) == len(TOPfolders):
 		raise Exception("Matching pairs of ligand and forcefield/ligand topology not detected. Please cross check")
@@ -224,7 +285,25 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 		response = tinput("Do you want to proceed anyway? YES/y or NO/n: ", defaults[4], "y")
 		if not (response.lower() == "yes" or response.lower() == "y"):
 			raise Exception("Process Abort!!!. Check your files and rerun")
+
+	if not len(RECfolders) == len(LIGfolders):
+		raise Exception("Matching pairs of receptor and ligand could not be detected. Please cross check")
+	else:
+		printNote("Detected matching pairs of receptor and ligand. Solvated complex will be generated for each pair")
 	print('\n')
+
+	# Set the starting date and time
+	printNote("IF YOU GET HERE, FILES CHECK WAS MOST PROBABLY SUCCESSFUL!!!")
+	printNote("CAREFULLY CHECK THE CHECK RESULTS ABOVE AND TYPE 'YES/y' TO CONFIRM OR 'NO/n' TO ABORT")
+	confirmation = input("Response is: ")
+	if not (confirmation.lower() == "yes" or confirmation.lower() == "y"):
+		raise Exception("Process aborted by the User. Please rerun from SetRoute")
+	else:
+		rlsingletime = datetime.now()
+		Tstart = rlsingletime.strftime("%B %d, %Y %H:%M:%S")
+		print(f'Generation of MDS input files begins: {Tstart}')
+	print('\n')
+	time.sleep(5)
 
 	# Get user imput for project name
 	while True:
@@ -251,6 +330,7 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 			break
 		else:
 			continue
+	print('\n')
 
 	# Create working directory using genrated project name
 	os.mkdir(foldername)
@@ -272,22 +352,29 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 		printNote("Samples of .mdp, peptide, and Tleap source files have been copied to your workspace directory")
 	except:
 		pass
+	print('\n')
 
 	os.chdir('../')
 	time.sleep(2)
 
 	RLname = "RLsingle_"
-	RLcount = 0
-	for RL in RECfolders:
+	npairs = 0
+	mdsfgerrors = 0
+	while npairs < len(RECfolders):
 		# Set global variable to access user supplied topology file(s)
+		RLcount = npairs + 1
+		RL = RECfolders[npairs]
 		Ligsff = " "
 		tff = " "
 		ligsff_dir = " "
 		M = TFF
 
 		# Create host directory for each pair of receptor and ligand
-		RLcount += 1
 		rls_dir = RLname + str(RLcount)
+		if os.path.isdir(os.path.join(work_dir, rls_dir)):
+			shutil.rmtree(os.path.join(work_dir, rls_dir))
+			time.sleep(5)
+
 		workhost_dir = os.path.join(work_dir, rls_dir)
 		print(f"Current project host directory set to {workhost_dir}")
 
@@ -299,7 +386,7 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 		ligtopdir = os.path.join(fPDB, 'Ligsff', ligtop)
 		listligtopdir = os.listdir(ligtopdir)
 		for itemf in listligtopdir:
-			if itemf == 'Gromos' or itemf == 'Opls' or itemf == 'Amber' or itemf == 'Charmm':
+			if itemf == 'Gromos' or itemf == 'Opls' or itemf == 'Amber' or itemf == 'Charmm' or itemf == 'Select':
 				Ligsff = itemf
 				break
 			elif itemf[0:4].capitalize() == "Opls":
@@ -314,6 +401,9 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 			elif itemf[0:6].capitalize() == "Gromos":
 				Ligsff = "Gromos"
 				break
+			elif itemf[0:6].capitalize() == "Select":
+				Ligsff = "Select"
+				break
 
 		ligsff_dir = os.path.join(fPDB, 'Ligsff', ligtop, Ligsff)
 		if TFF == 3:
@@ -324,9 +414,13 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 				TFF = 0		
 				printNote("No uploaded ligand(s) topology(ies) was detected for this pair")
 
-		if not Ligsff == " ":
+		if not (Ligsff == " " or Ligsff == "Select"):
 			printNote("PLEASE NOTE")
 			print(f"Your preselected forcefield group for this pair is {Ligsff}")
+
+		elif Ligsff == "Select":
+			printNote("PLEASE NOTE")
+			print("Forcefield will be selected interactively for this pair")
 
 		################################################
 		# GENERATING RECEPTOR TOPOLOGIES AND STRUCTURE #
@@ -351,9 +445,12 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 
 		# Get the list of all the avaialble water models
 		fwmodels = []
+		ffields = []
 		for key in dictff:
+			if not (key in ffields and key == "select"):
+				ffields.append(key)
 			for fw in dictff[key]:
-				if not fw in fwmodels:
+				if not (fw in fwmodels and fw == "select"):
 					fwmodels.append(fw)
 
 		# Get the preselected ff and water model for current pair
@@ -361,22 +458,39 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 		prewater = ""
 		for itemfw in listligtopdir:
 			ffww_dir = os.path.join(ligtopdir, itemfw)
-			if not (os.path.isdir(ffww_dir) or itemfw == Ligsff):
-				if itemfw in dictff and (itemfw[0:4].capitalize() == Ligsff or itemfw[0:5].capitalize() == Ligsff or itemfw[0:6].capitalize() == Ligsff):
+			if not os.path.isdir(ffww_dir):
+				if itemfw in ffields:
 					preff = itemfw
 				elif itemfw in fwmodels:
 					prewater = itemfw
-				else:
-					pass
+				elif itemfw == "select_ff":
+					preff = "select"
+				elif itemfw == "select_ww":
+					prewater = "select"
+			else:
+				pass
 
 		# Overide the default generate menu selections if ff and water are not 'select'
-		if selff == "select" or selwater == "select":
+		if selff == "select" and selwater == "select" and mdsfgerrors == 0:
+			printNote("This appears to be an interactive mode")
 			print(f"Current default values for -bt is: {defaults[2]}")
 			print(f"Current default values for -d is: {defaults[3]}")
 			print(f"Current default values for timeout is: {defaults[4]}")
 			response = tinput("To adjust these values for current protein - ligand complex, type YES/y: ", defaults[4], "n")
 			if response.lower() == "yes" or response.lower() == "y":
 				defaults[2], defaults[3], defaults[4] = defaults1() 
+		elif selff == "select" and selwater == "select" and mdsfgerrors > 0:
+			printNote("This appears to be a rerun of failed MDS input files generation")
+			printNote("The following are the current default values")
+			print(f"Current default values for forcefield is: {defaults[0]}")
+			print(f"Current default values for water model is: {defaults[1]}")
+			print(f"Current default values for -bt is: {defaults[2]}")
+			print(f"Current default values for -d is: {defaults[3]}")
+			print(f"Current default values for timeout is: {defaults[4]}")
+			if defaults[5] == "A":
+				print("Current default mode of generation is: Interactive")
+			else:
+				print("Current default mode of generation is: Noninteractive")
 		else:
 			selff = preff
 			selwater = prewater
@@ -414,20 +528,16 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 
 			if not newff in sff_folders:
 				if not (tff[0:4].capitalize() == Ligsff or tff[0:5].capitalize() == Ligsff or tff[0:6].capitalize() == Ligsff):
-					print(f"Your forcefiled as contained in receptor topology file is {tff}")
 					print(f"{tff} forcefield does not match the preselected forcefield group: {Ligsff}")
-					printNote("PLEASE NOTE - If you choose to continue: ")
-					print(f"A). Your forcefield group will be changed to match {tff}")
-					print("B). By default, any uploaded ligand topology will be ignored. However, you may choose to keep it")
+					print(f"By default, your forcefield group will be changed to match {tff} any uploaded ligand topology will be ignored")
 
 					printNote("To rerun, Type YES/y. Otherwise press ENTER to continue with current selection")
-					response = tinput("Response: ", defaults[4], "n")
+					response = tinput("Response: ", 30, "n")
 					if response.lower() == "yes" or response.lower() == "y":
 						selff = "select"
 						selwater = "select"
 						continue
 					else:
-						printNote("You have choosen to continue with current forcefield selection")					
 						if tff[0:4].capitalize() == "Opls":
 							Ligsff = "Opls"
 						elif tff[0:5].capitalize() == "Amber":
@@ -437,26 +547,25 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 						elif tff[0:6].capitalize() == "Charmm":
 							Ligsff = "Charmm"
 						else:
-							print(f"{tff} does not match any known forcefield group. Please rerun")
-							printNote("This may happen if you used a self created or modified forcefield. As such standard naming convention for forcefield should be used. E.g. Amber group of forcefields starts with amber, Gromos with gromos, etc. OR it may happen if generation of topol.top fails.")
-							printWarning("It is strongly recommended to abort the process, check uploaded file for correctness, and try again. Check README.md file for some troubleshooting tips")
-							printNote("To abort, Type YES/y. To continue anyway, press ENTER")
-							response = tinput("Response: ", defaults[4], "n")
+							print(f"{tff} does not match any known forcefield group. A rerun is recommended")
+							printNote("If using a self created or modified forcefield, use standard naming convention for forcefields")
+							print("To abort, Type YES/y. To continue anyway, press ENTER")
+							response = tinput("Response: ", 30, "n")
 							if response.lower() == "yes" or response.lower() == "y":
 								raise Exception("Process aborted. Make necessary corrections and Rerun setup")
 							else:
 								break
 
 						for sff in sff_folders:
-							if sff == 'Amber' or sff == 'Charmm' or sff == 'Gromos' or sff == 'Opls':
+							if sff == 'Amber' or sff == 'Charmm' or sff == 'Gromos' or sff == 'Opls' or sff == 'Select':
 								os.rename(os.path.join(fPDB, 'Ligsff', ligtop, sff), os.path.join(fPDB, 'Ligsff', ligtop, Ligsff))
 								print(f"Your selected forcefield group has been changed to {Ligsff}")
 
-							elif sff in dictff and sff == preff:
+							elif (sff in dictff and sff == preff) or sff == "select_ff":
 								os.rename(os.path.join(fPDB, 'Ligsff', ligtop, sff), os.path.join(fPDB, 'Ligsff', ligtop, newff))
 								print(f"Your selected forcefield has been changed to {tff}")
 
-							elif sff == prewater and newWater in dictff[Path(tff).stem]:
+							elif (sff == prewater and newWater in dictff[Path(tff).stem]) or sff == "select_ww":
 								os.rename(os.path.join(fPDB, 'Ligsff', ligtop, sff), os.path.join(fPDB, 'Ligsff', ligtop, newWater))
 								print(f"Your selected water model has been changed to {newWater}")
 
@@ -466,8 +575,7 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 						ligsff_dir = os.path.join(fPDB, 'Ligsff', ligtop, Ligsff)
 						if TFF == 1:
 							print(f"Subdirectory for uploaded ligand topology is now: {ligsff_dir}")
-							printNote("To use with uploaded ligand topology, type YES/y")
-							printNote("To use without uploaded ligand topology, type NO/n")
+							printNote("Type YES/y to use with uploaded ligand topology")
 							response = tinput("Response: ", defaults[4], "y")
 							if not (response.lower() == "yes" or response.lower() == "y"):
 								TFF = 0
@@ -479,10 +587,8 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 							break
 
 				else:
-					print(f"Your forcefiled as contained in receptor topology file is {tff}")
 					print(f"{tff} forcefield match the preselected forcefield group: {Ligsff}")
-					print(f"However, {tff} forcefield is different from the preselected forcefield")
-					print("By default, any uploaded ligand topology will be used. However, you may choose not to")
+					print(f"However, {tff} is different from the preselected forcefield for this pair")
 
 					printNote("To rerun, Type YES/y. Otherwise press ENTER to continue with current selection")
 					response = tinput("Response: ", defaults[4], "n")
@@ -491,8 +597,6 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 						selwater = "select"
 						continue
 					else:
-						printNote("You have choosen to continue with current forcefield selection")					
-
 						for sff in sff_folders:
 							if sff in dictff and sff == preff:
 								os.rename(os.path.join(fPDB, 'Ligsff', ligtop, sff), os.path.join(fPDB, 'Ligsff', ligtop, newff))
@@ -508,8 +612,7 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 						ligsff_dir = os.path.join(fPDB, 'Ligsff', ligtop, Ligsff)
 						if TFF == 1:
 							print(f"Subdirectory for uploaded ligand topology is: {ligsff_dir}")
-							printNote("To use with uploaded ligand topology, type YES/y")
-							printNote("To use without uploaded ligand topology, type NO/n")
+							printNote("Type YES/y to use with uploaded ligand topology")
 							response = tinput("Response: ", defaults[4], "y")
 							if not (response.lower() == "yes" or response.lower() == "y"):
 								TFF = 0
@@ -521,8 +624,6 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 							break
 
 			elif not newWater in sff_folders:
-				print(f"Your forcefiled as contained in receptor topology file is {tff}")
-				print(f"Your water model as contained in receptor topology file is {newWater}")
 				print(f"The detected {newWater} does not match the preselected water model: {selwater}")
 
 				printNote("To rerun, Type YES/y. Otherwise press ENTER to continue with current selection")
@@ -532,8 +633,6 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 					selwater = "select"
 					continue
 				else:
-					printNote("You have choosen to continue with current water model")					
-
 					for sff in sff_folders:
 						if sff == prewater and newWater in dictff[Path(tff).stem]:
 							os.rename(os.path.join(fPDB, 'Ligsff', ligtop, sff), os.path.join(fPDB, 'Ligsff', ligtop, newWater))
@@ -545,7 +644,6 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 
 			else:
 				print(f"Your forcefiled as contained in topol.top file is {tff}")
-				print(f"Your water model as contained in topol.top file is {newWater}")
 				break
 
 		try:
@@ -556,18 +654,141 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 			printWarning(e)
 			pass
 
-		os.chdir('../')
-		time.sleep(5)
+		# Check if regenerating and decide either to continue interactively or not
+		if mdsfgerrors > 0:
+			print('\n')
+			printNote("This is a rerun of failed MDS input files generation with Interactive mode")
+			print("Type YES/y to continue interactviely, Or press ENTER for Noninteractive mode")
+			mode = input("Response is: ")
+			if not (mode.lower() == "yes" or mode.lower() == "y"):
+				print("We are changing to Noninteractive mode")
+				defaults[5] = "B"
+			else:
+				defaults[5] = "A"
+				defaults[0] = "select"
+				defaults[1] = "select"
+				mdsfgerrors = 0
 
+		# If needed, we now change the default parameters and lock the new default mode
+		if not (defaults[0] == "select" and defaults[1] == "select" and mdsfgerrors == 0):
+			if defaults[5] == "B":
+				if Path(tff).suffix == ".ff":
+					defaults[0] = Path(tff).stem
+				else:
+					defaults[0] = tff
+				
+				defaults[1] = defaults2(RFtop)
+				if defaults[1] == "none":
+					print("No water model was detected for your system")
+				else:
+					print("Your water model as contained in topol.top file is ", defaults[1])
+				
+				printNote("Your selected default values are as follows: ")
+				print(f"		Default forcefield: {defaults[0]}")
+				print(f"		Default water model: {defaults[1]}")
+				print(f"		Default editconf -bt: {defaults[2]}")
+				print(f"		Default editconf -d: {defaults[3]}")
+				print(f"		Default input timeout: {defaults[4]}")
+				print("		Default mode: non-interactive")
+				defaults[5] = "C"
+			else:
+				defaults[1] = defaults2(RFtop)
+				if defaults[1] == "none":
+					print("No water model was detected for your system")
+				else:
+					print(f"Your water model as contained in topol.top file is {defaults[1]}")
+			mdsfgerrors = 0
+
+		# Checking for posre.itp file or create one to include relevant posre files
+		print("Updating topology file...")
+		if not "posre.itp" in os.listdir():
+			# Create new posre file to accomodate all generated chains posres
+			posrefileopen = open("posre.itp", "+a")
+
+			# Add headers to show it was not created by gromacs
+			posreheaders = ["; This file was generated to captured all pdb2gmx generated posre files", "; This file is needed when multiple protein chains are involved, each having its own posre file", "; The file should be checked for correctness and used with caution, and may be edited as approapriate if needed", "; Also, details here can be transfered to topol.top directly under '#ifdef POSRE' and ignore this file", "; Note that pdb2gmx prepared posre for each chain and included '#ifdef POSRE' in chain topology that has now been removed", "; A backup of the original chain topology files can be found in Receptor and gmxmds/backup folders", "; To use the backup chains topology files instead, comment in '; ' or delete the lines below"]
+			for pheader in posreheaders:
+				posrefileopen.write(pheader)
+				posrefileopen.write('\n')
+			posrefileopen.write('\n')
+
+			# Check for and include all generated posres file here, make backup copy
+			for posrefile in os.listdir():
+				if posrefile[0:5].lower() == "posre" and not posrefile == "posre.itp":
+					includeposre = '#include' + ' ' + '"' + posrefile + '"'
+					posrefileopen.write(includeposre)
+					posrefileopen.write('\n')
+			posrefileopen.write('\n')
+			posrefileopen.close()
+
+			# Create backup copy of the chain topology files and remove 'Include Position restraint file' statement
+			for chain in os.listdir():
+				if Path(chain).suffix == ".itp" and not chain[0:5] == "posre":
+					bkposre = "bk" + chain
+					shutil.copy(chain, bkposre)
+
+					ciindex1 = 0
+					readL = 0
+					
+					with open(chain, "r") as pfrc:
+						chainreadlines = pfrc.readlines()
+						readL = len(chainreadlines) - 1
+
+						for ciline in chainreadlines:
+							if "include" in ciline.lower().split() and "position" in ciline.lower().split() and "restraint" in ciline.lower().split():
+								break
+							else:
+								ciindex1 += 1
+
+					ciindex2 = ciindex1 + 4
+					if ciindex1 < readL and not ciindex2 > readL:
+						with open(chain, "r") as pfr:
+							chainlines = pfr.readlines()
+
+						with open(chain, "w") as pfw:
+							for pline in chainlines:
+								if not pline in chainlines[ciindex1:ciindex2]:
+									pfw.write(pline)
+
+		# Checking for inclusion of restraint files
+		nrecopen = open("nReceptor.top", "r")
+		nrecreadlines = nrecopen.readlines()
+		includelines = []
+		for nline in nrecreadlines:
+			xnline = []
+			for xnl in nline.split():
+				xnline.append(xnl.lower())
+
+			if "#ifdef" in xnline and "posres" in xnline:
+				includelines.append("#ifdef")
+				includelines.append("posres")
+		nrecopen.close()
+
+		if "#ifdef" in includelines and "posres" in includelines:
+			shutil.copy(os.path.join(scriptDIR, 'gmodsScripts', 'mt-topol2.itp'), './')
+			insertUDP = "; Include water topology"
+			insertdetails('nReceptor.top', 'mt-topol2.itp', insertUDP)
+			os.remove('mt-topol2.itp')
+		else:
+			shutil.copy(os.path.join(scriptDIR, 'gmodsScripts', 'mt-topol3.itp'), './')
+			insertP = "; Include water topology"
+			insertdetails('nReceptor.top', 'mt-topol3.itp', insertP)
+			os.remove('mt-topol3.itp')
+
+		os.chdir('../')
+		time.sleep(10)
+
+		##########################################################
+		# DETERMINE ROUTE FOR OPLS LIGANDS TOPOLOGIES GENERATION #
+		##########################################################
 		# Determine and choose preferred route for platform generated opls ligand topology
 		opls_route = 0
 		if Ligsff == 'Opls':
-			printNote("You have selected opls as your preferred forcefield")
-			printNote("Attempt will be made to generate opls compatible topology for each ligand")
-			printNote("The following options are available to generate ligand topology:")
-			print("	1. Using platform opls compatible ligand topology generation - RECOMMENDED")
-			print("	2. Using acpype opls compatible ligand topology generation")
-			print("	3. Using platform default - ignore opls compatibility - NOT RECOMMENDED")
+			print('\n')
+			printNote("The following options are available to generate OPLS compatible ligand topology:")
+			print("	1. Using platform OPLS compatible ligand topology generation - RECOMMENDED")
+			print("	2. Using acpype OPLS compatible ligand topology generation")
+			print("	3. Using platform default - ignore OPLS compatibility - NOT RECOMMENDED")
 
 			while True:
 				response = tinput("Choose your preferred option: ", defaults[4], "1")
@@ -607,7 +828,7 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 		time.sleep(2)
 
 		Lname = "LIG"
-		Lfolder = LIGfolders[RLcount - 1]
+		Lfolder = LIGfolders[npairs]
 		dlname = Lname + str(RLcount)
 
 		shutil.copy(os.path.join(PLD, 'ligtoptleap.in'), './')
@@ -727,9 +948,8 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 
 			else:
 				print(f"{utop} user supplied topology does not match the ligand named {ulig}")
-				print("It is advisable to make corrections, rerun the process and upload correct topology file")
-				printNote("The default is that the uploaded topology for the current ligand will be ignored")
-				printNote("If you are sure of the uploaded topology, type YES/y to continue. Otherwise press ENTER")
+				printNote("By default, uploaded ligand topology for this pair will be ignored")
+				printNote("Type YES/y to continue with the topology file. Otherwise press ENTER")
 				response = tinput("Response: ", defaults[4], "n")
 				if not (response.lower() == "yes" or response.lower() == "y"):
 					TFF = 0
@@ -760,12 +980,11 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 			oplstop = OPLStop(LFtop, tff, dlname)
 
 			if not oplstop == mergename:
-				printWarning("Platform opls compatible ligand topology generation failed")
-				printNote("Trying acpype...")
+				printWarning("Selelcted option 1 for OPLS compatible ligand topology generation failed")
+				printNote("Trying alternative option 2...")
 				oplstop = OPLSacpype(LFtop, lig, dlname)
 				if not oplstop == mergename:
-					printWarning("acpype opls compatible ligand topology generation also failed")
-					print("Check that you have correctly installed the latest acpype")
+					printWarning("Alternative option 2 for ligand topology generation also failed")
 					printNote("Platform default will now be used")
 					oplstop = LFtop		
 
@@ -774,12 +993,11 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 			oplstop = OPLSacpype(LFtop, lig, dlname)
 
 			if not oplstop == mergename:
-				printWarning("acpype opls compatible ligand topology generation also failed")
-				print("Check that you have correctly installed the latest acpype")
-				printNote("Trying Platform opls compatible ligand topology generation ...")
+				printWarning("Selected option 2 for OPLS ligand topology generation failed")
+				print("Trying alternative option...")
 				oplstop = OPLStop(LFtop, tff, dlname)
 				if not oplstop == mergename:
-					printWarning("Platform opls compatible ligand topology generation also failed")
+					printWarning("Alternative option 1 for ligand topology generation also failed")
 					printNote("Platform default will now be used")
 					oplstop = LFtop		
 
@@ -799,6 +1017,12 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 		findex = indexoflines(nametop)
 		ligand_at, ligand_mt = topolsplit(nametop, dlname, findex)
 	
+		# Check ligand directory for posre file and back it up
+		for posrefile in os.listdir():
+			if posrefile[0:5] == "posre":
+				posrebk = posrefile + ".bk"
+				os.rename(posrefile, posrebk)
+
 		os.chdir('../')
 
 		###########################################################
@@ -812,7 +1036,7 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 		complex_dir = os.path.join(workhost_dir, 'Complex')
 		print(f"Protein-Ligand Complex data directory set to {complex_dir}")
 
-		printNote("Generating Protein-Ligands complex topologies and parameters for each pair of receptor and ligand...")
+		printNote("Generating Protein-Ligands complex topologies and parameters...")
 		time.sleep(2)
 
 		clname = Lname + str(RLcount)
@@ -830,9 +1054,6 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 			ulp_top = "u" + clname + ".top"
 			uLIG_at = "u" + clname + "_at.itp"
 			uLIG_mt = "u" + clname + "_mt.itp"
-
-		print("Generating Protein-Ligands complex structures...")
-		print("Gathering needed files...")
 
 		# Gather needed files to generate complex topologies
 		listcln = os.listdir(lig_dir)
@@ -877,7 +1098,6 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 		# Now we shall insert details into receptor topol file
 		listCpldir = os.listdir()
 		if 'nReceptor.top' in listCpldir:
-			print("Generating complex topologies and parameters for Receptor - Ligand pair ...")
 			shutil.copy('nReceptor.top', 'topol.top')
 			insertAT = "[ moleculetype ]"
 			insertdetails('topol.top', 'at-topol.itp', insertAT)
@@ -906,7 +1126,7 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 				utopolfile.write(ureadtops)
 				utopolfile.close()
 				uligmnfile.close()
-
+		
 		# Make dir and copy lig pdb into it for pdbcatogro() to access for alternative complex generation
 		os.mkdir('ligpdb')
 		os.chdir('ligpdb')
@@ -919,21 +1139,11 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 		complexdir = os.listdir()
 		tleapfile = "tleap-1-ligs.in"
 		if not tleapfile in complexdir:
-			printNote("#####################################################################")
-			print("No matching tleap input file is found for your number of ligands")
-			print("As such, complex can not be generated using tleap")
+			print('\n')
+			printWarning("GROMACS compatible tleap generated complex structure and topology - Not available")
 			print("To use tleap, check README.md for guide on how to create a matching input file")
-			print("Note that it's only through tleap that added useful alternative files can be generated")
-			print("It is therefore advisable to abort and attempt to fix the errors")
-			printNote("#####################################################################")
 
-			print("However, you may wish to try an alternative approach to complex generation")
-			response = tinput("Type YES/y to try Or ENTER to abort: ", defaults[4], "y")
-			if not (response.lower() == "yes" or response.lower() == "y"):
-				raise Exception("Process aborted. Make necessary corrections and rerun")
-
-			print("Trying alterenative complex generation...")
-
+			printNote("Trying alternative approach to complex generation...")
 			catcomplx_gro, catcomplx_pdb = pdbcatogro()
 
 			if not (catcomplx_gro == 'conComplex.gro' and catcomplx_pdb == 'conComplex.pdb'):
@@ -948,17 +1158,10 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 			complx_gro, complx_top = complexgen(tleapfile)
 
 			if not (complx_gro == 'Complex.gro' and complx_top == 'Complex.top'):
-				printNote("#####################################################################")
-				printWarning("tleap could not successfully generate complex structure and topologies")
-				printNote("This is understandable if the choosen forcefield did not match amber. It is advisable to abort and attempt to fix the error")
-				printNote("#####################################################################")
+				print('\n')
+				printWarning("Generation of GROMACS compatible tleap generated complex structure and topology FAILED")
 
-				print("However, you may wish to try alternative approach to complex generation")
-				response = tinput("Type YES/y to try Or press ENTER to abort: ", defaults[4], "y")
-				if not (response.lower() == "yes" or response.lower() == "y"):
-					raise Exception("Process aborted. Make necessary corrections and rerun")
-
-				print("Trying alterenative complex generation...")
+				printNote("Trying alterenative complex generation...")
 
 				catcomplx_gro, catcomplx_pdb = pdbcatogro()
 
@@ -974,6 +1177,7 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 				os.rename(complx_gro, 'tlpComplex.gro')
 				os.rename(complx_top, 'tlpComplex.top')
 
+				print("Generating additional alternative complex structure....")
 				catcomplx_gro, catcomplx_pdb = pdbcatogro()
 
 				if not (catcomplx_gro == 'conComplex.gro' and catcomplx_pdb == 'conComplex.pdb'):
@@ -982,6 +1186,12 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 				else:
 					os.rename(catcomplx_gro, 'catComplex.gro')
 					os.rename(catcomplx_pdb, 'catComplex.pdb')
+
+		try:
+			os.remove("LIGS_mn.itp")
+			os.remove("uLIGS_mn.itp")
+		except:
+			pass
 
 		os.chdir('../')
 
@@ -1002,66 +1212,57 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 				shutil.copy(os.path.join(workhost_dir, 'Complex', C), './')
 	
 		try:
-			os.remove('at-topol.itp')
 			os.remove('mt-topol.itp')
 			os.remove('Receptor_new.pdb')
 		except:
 			pass
 
+		if not "at-topol.itp" in os.listdir():
+			shutil.copy(os.path.join(scriptDIR, 'gmodsScripts', 'at-topol.itp'), './')
+
 		# Determine if the forcefield belong to the selected group - amber, charmm, gromos and opls
 		if TFF > 0:
 			if tff[0:4].lower() == Ligsff.lower() or tff[0:5].lower() == Ligsff.lower() or tff[0:6].lower() == Ligsff.lower():
-				printNote("The forecfield in topol.top match the preferred forcefield group selected at setup")
+				print('\n')
 				printNote("Your uploaded ligand topologies have been prepared for use")
-				print('\n')
-				printNote("PLEASE NOTE THAT THE DEFAULT ORDER ARE:")
-				print("1. User uploaded ligand topologies will be attempted first")
-				print("2. Platform generated ligand topologies will serve as fallback")
-				print("It is strongly recommended to maintain this order for Gromos and Opls forcefields")
-				print('\n')
-				printNote("To reverse the order, type YES/y, Otherwise press ENTER to continue")
-				response = tinput("Response: ", defaults[4], "n")
+				printNote("PLEASE NOTE THE DEFAULT ORDER OF USE:")
+				print(">>>>> 1. User uploaded ligand topologies will be attempted first")
+				print(">>>>> 2. Platform generated ligand topologies will serve as fallback")
+				response = tinput("To reverse the order, type YES/y, Otherwise press ENTER: ", defaults[4], "n")
 				if not (response.lower() == "yes" or response.lower() == "y"):
-					print("Backing off and renaming relevant files....")
 					os.rename('LIGS_at.itp', 'bkLIGS_at.itp')
 					os.rename('LIGS_mt.itp', 'bkLIGS_mt.itp')
 					os.rename('topol.top', 'bktopol.top')
 					os.rename('uLIGS_at.itp', 'LIGS_at.itp')
 					os.rename('uLIGS_mt.itp', 'LIGS_mt.itp')
 					os.rename('utopol.top', 'topol.top')
+					printNote("THE DEFAULT ORDER WILL BE MAINTAINED")
+					print('\n')
 
 				else:
-					print("The order has been reversed as follow:")
-					print("1. Platform generated ligand topology(ies) will be used first")
-					print("2. User uploaded ligand topologies will serve as fallback")
-					print("Backing off some relevant files....")
+					printNote("THE DEFAULT ORDER HAS BEEN REVERSED")
 					os.rename('uLIGS_at.itp', 'bkLIGS_at.itp')
 					os.rename('uLIGS_mt.itp', 'bkLIGS_mt.itp')
 					os.rename('utopol.top', 'bktopol.top')
+					print('\n')
 
 			else:
+				print('\n')
 				print(f"{tff} in topol.top does not match the selected forcefield group, {Ligsff}")
-				raise Exception("Platform Aborted!!!. Check and restart the process")
+				printNote("Forcefield in topol.top will be used")
 
 		else:
-			if tff[0:5].lower() == 'amber':
-				print(f"{tff} is an amber forcefield")
+			if tff[0:5].lower() == 'amber' or tff[0:6].lower() == 'charmm' or tff[0:6].lower() == 'gromos' or tff[0:4].lower() == 'opls':
+				print(f"{tff} is an acceptable GROMACS compatible forcefield")
 				printNote("Default auto-generated ligand topology will be used") 
-
-			elif tff[0:6].lower() == 'charmm':
-				print(f"{tff} is a charmm forcefield")
-				printNote("Default auto-generated ligand topology will be used") 
-
-			elif tff[0:6].lower() == 'gromos':
-				print(f"{tff} is a gromos forcefield and you have not uploaded ligand topology files.")
-				printNote("Default auto-generated ligand topology will be used, but may fail") 
-
-			elif tff[0:4].lower() == 'opls':
-				print(f"{tff} is an opls forcefield and you have not uploaded ligand topology files.")
-				printNote("Auto-generated OPLS compatible ligand topology will be used, but may fail") 
+				if tff[0:6].lower() == 'gromos' or tff[0:4].lower() == 'opls':
+					print(f"for {tff}, uploading prepared ligand topology file is recommended")
 	
 		# Time to prepared solvated complex
-		selwater = newWater
+		if not defaults[1] == "select":
+			selwater = newWater
+		else:
+			selwater = defaults2("topol.top")
 		selbt = defaults[2]
 		seld = defaults[3]
 
@@ -1071,127 +1272,124 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 			# Prepare a version of amber tleap generated topology for suitable use with Gromacs
 			print("Preparing tleap topology file for possible use with Gromacs...")
 			tlpgmxtopol = TLtopol('nReceptor.top', 'tlpComplex.top', tff)
-			shutil.copy(tlpgmxtopol, 'xtlptopol.top')
+			if not tlpgmxtopol == "tlptopol.top":
+				printNote("Returning tleap topology as originally generated")
+			else:
+				shutil.copy(tlpgmxtopol, 'xtlptopol.top')
+				if "posre_complex.itp" in os.listdir():
+					os.rename("posre_complex.itp", "posre_tlptopol.itp")
 
 			# Now it's time to solvate and add ions
-			print('\n')
-
-			printNote("Solvation with tlpComplex.gro in progress.....")
+			printNote("Solvation in progress.....")
 			grosolvated = solvation('tlpComplex.gro', 'topol.top', selwater, selbt, seld)
 			
 			if not grosolvated == 'fsolvated.gro' and 'catComplex.gro' in chkSoldir:
-				printNote("Solvation with tlpComplex.gro unsuccessful")
+				printWarning("Solvation with default complex unsuccessful")
 
-				printNote("Trying Solvation with the alternative complex in progress.....")
+				printNote("Trying Solvation with backup complex...")
 				grosolvated = solvation('catComplex.gro', 'topol.top', selwater, selbt, seld)
 
 				if not grosolvated == 'fsolvated.gro' and TFF > 0:
-					printNote("Solvation with alternative complex unsuccessful")
+					printWarning("Solvation with backup complex unsuccessful")
 
-					print("Trying the backup topology files with tlpComplex.gro")
-					print("Doing backup to avoid using already updated files..")
-
+					print("Trying solvation with backup topologies...")
 					os.rename('LIGS_at.itp', '#LIGS_at.itp.bk#')
 					os.rename('LIGS_mt.itp', '#LIGS_mt.itp.bk#')
 					os.rename('topol.top', '#topol.top.bk#')
-					os.rename('tlptopol.top', '#tlptopol.top.bk#')
 					os.rename('bkLIGS_at.itp', 'LIGS_at.itp')
 					os.rename('bkLIGS_mt.itp', 'LIGS_mt.itp')
 					os.rename('bktopol.top', 'topol.top')
-					shutil.copy('xtlptopol.top', 'tlptopol.top')
+					if "tlptopol.top" in os.listdir() and "xtlptopol.top" in os.listdir():
+						os.rename('tlptopol.top', '#tlptopol.top.bk#')
+						shutil.copy('xtlptopol.top', 'tlptopol.top')
 	
-					printNote("Repeating Solvation with tlpComplex.gro in progress.....")
 					grosolvated = solvation('tlpComplex.gro', 'topol.top', selwater, selbt, seld)
 
 					if not grosolvated == 'fsolvated.gro':
-						printNote("Solvation with backup topologies failed with tlpComplex.gro")
+						printWarning("Solvation failed again with default complex")
 
-						printNote("Trying Solvation with the alternative complex with backup topologies ...")
+						printNote("Trying Solvation with the backup complex ...")
 						grosolvated = solvation('catComplex.gro', 'topol.top', selwater, selbt, seld)
 
 						if not grosolvated == 'fsolvated.gro':
-							printNote("Solvation using backup topologies with alternative complex unsuccessful")
-							print("Solvation can not continue. You may wish to do solvation manually")
+							printWarning("Solvation failed again with backup complex")
+							printNote("Solvation can not continue. You may wish to do solvation manually")
 
 						else:
-							printNote("Solvation of catComplex.gro with backup topologies was successful")
+							printNote("Solvation with backup complex was successful")
 
 					else:
-						printNote("Solvation of tlpComplex.gro with backup topologies was successful")
+						printNote("Solvation with default complex was successful")
 
 				elif not grosolvated == 'fsolvated.gro' and TFF == 0:
-					printNote("Solvation with alternative complex unsuccessful")
+					printNote("Solvation with backup complex unsuccessful")
 					print("Solvation can not continue. You may wish to do solvation manually")
 
 				else:
-					printNote("Solvation with alternative complex was successful")
+					printNote("Solvation with backup complex was successful")
 
 			elif not (grosolvated == 'fsolvated.gro' and 'catComplex.gro' in chkSoldir):
 				if TFF > 0:
-					print("Trying the backup topology files with tlpComplex.gro")
-					print("Doing backup of updated files..")
-
+					print("Trying the backup topology files...")
 					os.rename('LIGS_at.itp', '#LIGS_at.itp.bk#')
 					os.rename('LIGS_mt.itp', '#LIGS_mt.itp.bk#')
 					os.rename('topol.top', '#topol.top.bk#')
-					os.rename('tlptopol.top', '#tlptopol.top.bk#')
 					os.rename('bkLIGS_at.itp', 'LIGS_at.itp')
 					os.rename('bkLIGS_mt.itp', 'LIGS_mt.itp')
 					os.rename('bktopol.top', 'topol.top')
-					shutil.copy('xtlptopol.top', 'tlptopol.top')
+					if "tlptopol.top" in os.listdir() and "xtlptopol.top" in os.listdir():
+						os.rename('tlptopol.top', '#tlptopol.top.bk#')
+						shutil.copy('xtlptopol.top', 'tlptopol.top')
 	
-					printNote("Repeating Solvation with tlpComplex.gro in progress.....")
 					grosolvated = solvation('tlpComplex.gro', 'topol.top', selwater, selbt, seld)
 
 					if not grosolvated == 'fsolvated.gro':
-						printNote("Solvation with backup topologies failed with tlpComplex.gro")
+						printNote("Solvation with backup topologies and default complex failed")
 						print("Solvation can not continue. You may wish to do solvation manually")
 
 					else:
-						printNote("Solvation of tlpComplex.gro with backup topologies was successful")
+						printNote("Solvation with default complex and backup topologies was successful")
 
 				else:
-					printNote("Solvation with tlpComplex.gro unsuccessful")
+					printNote("Solvation with default complex unsuccessful")
 					print("Solvation can not continue. You may wish to do solvation manually")
 				
 			else:
-				printNote("Solvation with tlpComplex.gro was successful")
+				printNote("Solvation with default complex was successful")
 
 		elif 'catComplex.gro' in chkSoldir:
-			printNote("Solvation with catComplex.gro in progress.....")
+			printNote("Solvation with backup complex in progress.....")
 			grosolvated = solvation('catComplex.gro', 'topol.top', selwater, selbt, seld)
 
 			if not grosolvated == 'fsolvated.gro' and TFF > 0:
-				printNote("Solvation with catComplex.gro unsuccessful")
+				printNote("Solvation with backup complex unsuccessful")
 
-				print("Trying the backup topologies with catComplex.gro")
-				print("Doing backup of updated files..")
-
+				print("Trying the backup topologies ...")
 				os.rename('LIGS_at.itp', '#LIGS_at.itp.bk#')
 				os.rename('LIGS_mt.itp', '#LIGS_mt.itp.bk#')
 				os.rename('topol.top', '#topol.top.bk#')
-				os.rename('tlptopol.top', '#tlptopol.top.bk#')
 				os.rename('bkLIGS_at.itp', 'LIGS_at.itp')
 				os.rename('bkLIGS_mt.itp', 'LIGS_mt.itp')
 				os.rename('bktopol.top', 'topol.top')
-				shutil.copy('xtlptopol.top', 'tlptopol.top')
+				if "tlptopol.top" in os.listdir() and "xtlptopol.top" in os.listdir():
+					os.rename('tlptopol.top', '#tlptopol.top.bk#')
+					shutil.copy('xtlptopol.top', 'tlptopol.top')
 	
-				printNote("Repeating Solvation with catComplex.gro in progress.....")
 				grosolvated = solvation('catComplex.gro', 'topol.top', selwater, selbt, seld)
 
 				if not grosolvated == 'fsolvated.gro':
-					printNote("Solvation with backup topologies failed with catComplex.gro")
+					printNote("Solvation with backup complex and topologies failed")
 					print("Solvation can not continue. You may wish to do solvation manually")
 
 				else:
-					printNote("Solvation of catComplex.gro with backup topologies was successful")
+					printNote("Solvation with backup complex and topologies was successful")
 
 			elif not grosolvated == 'fsolvated.gro' and TFF == 0:
-				printNote("Solvation of catComplex.gro with backup topologies unsuccessful")
+				printNote("Solvation with backup complex and topologies was unsuccessful")
 				print("Solvation can not continue. You may wish to do solvation manually")
 
 			else:
-				printNote("Solvation of catComplex.gro with backup topologies was successful")
+				printNote("Solvation with backup complex and topologies was successful")
 
 		else:
 			printNote("Required gro file for solvation not found / generated. Solvation can not continue")
@@ -1215,19 +1413,11 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 
 		listsol = os.listdir(solvation_dir)
 		for file in listsol:
-			if (Path(file).suffix == ".itp" or Path(file).suffix == ".top"):
+			if Path(file).suffix == ".itp" or Path(file).suffix == ".top" or Path(file).suffix == ".gro":
 				shutil.copy(os.path.join(workhost_dir, 'Solvation', file), './')
-			elif file == "fsolvated.gro" or file == "ufsolvate.gro":
-				shutil.copy(os.path.join(workhost_dir, 'Solvation', file), './')
-			elif not ('fsolvated.gro' in listsol and defaults[1] == "none"):
-				if file == 'tlpSolvated.gro' or file == 'tlpSolvated.top':
-					shutil.copy(os.path.join(workhost_dir, 'Solvation', file), './')
 
 		# Removing files that are not needed for MDS with Gromacs
-		print("Removing files not needed for MDS from gmxmds directory")
-		print("They can be found in Solvation directory")
-
-		gmxmdsrequired = ['fsolvated.gro', 'ufsolvate.gro', 'tlpSolvated.gro', 'tlpSolvated.top', 'tlptopol.top', 'topol.top']
+		gmxmdsrequired = ['fsolvated.gro', 'ufsolvate.gro', 'tlpSolvated.gro', 'tlpSolvated.top', 'tlptopol.top', 'topol.top', 'utopol.top', 'bktopol.top']
 		for itpf in os.listdir():
 			if Path(itpf).suffix == ".itp":
 				gmxmdsrequired.append(itpf)
@@ -1236,21 +1426,44 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 			if not rmf in gmxmdsrequired: 
 				os.remove(rmf)
 
+		if 'fsolvated.gro' in os.listdir():
+			try:
+				os.remove('tlpSolvated.gro')
+				os.remove('tlpSolvated.top')
+			except:
+				pass
+
 		# Getting Include files ready and up-to-date
 		neededIncludeFiles = gmxmdsFChecks(os.listdir())
 		notNeededIncludeFiles = []
 
 		for includefile in os.listdir():
 			if Path(includefile).suffix == ".itp":
-				if not includefile in neededIncludeFiles:
-					if not includefile in notNeededIncludeFiles:
-						notNeededIncludeFiles.append(includefile)
+				if not includefile[0:5] == "posre":
+					if not includefile in neededIncludeFiles:
+						if not includefile in notNeededIncludeFiles:
+							notNeededIncludeFiles.append(includefile)
 			else:
 				pass
 		
 		os.mkdir("not4mds")
+		os.mkdir("backup")
+
 		for notfile in notNeededIncludeFiles:
-			shutil.move(notfile, os.path.join(workhost_dir, 'gmxmds', 'not4mds'))
+			if notfile[0:2].lower() == "bk":
+				shutil.move(notfile, os.path.join(workhost_dir, 'gmxmds', 'backup'))
+			else:
+				shutil.move(notfile, os.path.join(workhost_dir, 'gmxmds', 'not4mds'))
+
+		for bkfile in os.listdir():
+			if bkfile[0:2].lower() == "bk":
+				shutil.move(bkfile, os.path.join(workhost_dir, 'gmxmds', 'backup'))
+
+		# Performing final processing for tlptopol.top file, if it has not been used instead of topol.top file
+		if "topol.top" in os.listdir() and "tlptopol.top" in os.listdir() and not defaults[1] == "none":
+			print("Final processing of tlptopol.top file in progress .....")
+			time.sleep(5)
+			tlpfinal("tlptopol.top", "topol.top")
 
 		# If required, new restraint file can now be generated
 		listgmxmds = os.listdir()
@@ -1258,63 +1471,62 @@ def RLsingle(appDIR, gmxDIR, fdefaults, dictff):
 		if "fsolvated.gro" in listgmxmds:
 			grosolvated = "fsolvated.gro"
 
-			printNote("##############################################################################")
-			print("# The current posre.itp restrain all heavy atoms which include Backbone atoms")
-			print("# You can generate your desired restrain file if this does not meet your need")
-			print("# This should be named posre_udp. To use posre.itp, define -DPOSRE in .mdp files")
-			print("# To use posre_udp.itp instead, define -DPOSRE_UDP in .mdp files")
-			printNote("##############################################################################")
-
 			printNote("To generate a new restraint interactively, type YES/y, otherwise press ENTER")
 			response = tinput("Response: ", defaults[4], "n")
 			if response.lower() == "yes" or response.lower() == "y":
-				success = 0
-				try:
-					subprocess.run('gmx genrestr -f ' + grosolvated + ' -o posre_udp.itp', shell=True, stderr=subprocess.STDOUT, check=True, text=True)
-				except subprocess.SubprocessError as e:
-					print(e)
-					printWarning("Something went wrong with the above error message. Please check")			
-					time.sleep(2)
-					success = 1
-
-				if success == 0:
+				restrfile = udrestraint(grosolvated)
+				if restrfile == "posre_udp.itp" or "posre_udp.itp" in os.listdir():
 					printNote("You have generated posre_udp.itp. To use it in MDS, define -DPOSRES_UDP in .mdp files")
 					printNote("OR if already define -DPOSRE, back up posre.itp and rename posre_udp.itp to posre.itp")
-				else:
-					printNote("No posre_udp.itp has been generated. If need be, generate it manually")
-				time.sleep(5)
-
-			else:
-				printNote("No posre_udp.itp has been generated. If need be, generate it manually")
-				time.sleep(5)
-
-			shutil.copy(os.path.join(scriptDIR, 'gmodsScripts', 'mt-topol2.itp'), './')
-			insertUDP = "; Include water topology"
-			insertdetails('topol.top', 'mt-topol2.itp', insertUDP)
-			os.remove('mt-topol2.itp')
-
-			print(f"{rls_dir} gmxmds subfolder has been populated and ready for use for simulation")
 			TFF = M
-			time.sleep(5)
-			os.chdir('../../')
 
 		elif "tlpSolvated.gro" in os.listdir() and "tlpSolvated.top" in os.listdir():
-			print("TLeap generated solvated files were found and have been moved to gmxmds folder. Please read README.md file for further guides on how to use it")
-			print(f"{rls_dir} gmxmds subfolder has been populated and ready for manual solvation or simulation")
+			print("TLeap generated solvated files were found and have been moved to gmxmds folder")
+			print("Please read README.md file for further guides on how to use it")
 			TFF = M
-			time.sleep(5)
-			os.chdir('../../')
 
 		else:
-			print(f"{rls_dir} gmxmds subfolder has been populated and ready for manual solvation or simulation")
 			print("To generate alternative tleap solvated files, follow instruction in README.md file to edit relevant tleap file and rerun the process")
 			TFF = M
-			time.sleep(5)
-			os.chdir('../../')
-		print('\n')
 
-	print("PLEASE NOTE:")
-	print("The files in folder 'not4mds' of 'gmxmds' are considered not necessary for MDS. Please check")
+		# Final Processing of generated files for better formating
+		print("Performing Final Checking of Processed MDS input files...")
+		if "fsolvated.gro" in os.listdir() or "ufsolvate.gro" in os.listdir():
+			for mdsfile in os.listdir():
+				if not os.path.isdir(mdsfile):
+					gmxmdsFClean(mdsfile)
+			os.chdir('../../')
+			print('\n')
+			npairs += 1
+
+		else:
+			mdsfgerrors += 1
+			decision, newdefaults = gmxmdsFEChecks(defaults)
+			if decision == "abort":
+				raise Exception("Process aborted. Please check and make corrections")
+			elif decision == "continue":
+				printWarning("You have chosen to continue with the process despite errors. Please check")
+				os.chdir('../../')
+				print('\n')
+				npairs += 1
+			elif decision == "regenerate":
+				printNote("Getting files and defauts values ready for Regeneration...")
+				defaults = newdefaults
+				os.chdir('../../')
+				print('\n')
+
+	print(f"{rls_dir} gmxmds subfolder has been populated and ready for use for simulation")
+	print('\n')
+
+	printNote("PLEASE NOTE:")
+	print("The files in subfolder 'not4mds' of 'gmxmds' are considered not necessary for MDS. Please check")
+	print("The files in subfolder 'backup' of 'gmxmds' can be used to replace relevant ones in gmxmds folder for MDS")
 
 	print('\n')
-	printNote("Setup with RLmany route completed. Please analyse the contents of 'check', 'check1' and/or 'check2' files and their backup versions in 'Solvation' folder before proceeding with MDS") 
+	printNote("Setup with RLsingle route completed. Please analyse the contents of 'check', 'check1' and/or 'check2' files and their backup versions in 'Solvation' folder before proceeding with MDS")
+
+	# Set the starting date and time
+	print('\n')
+	rlsingletime2 = datetime.now()
+	Tend = rlsingletime2.strftime("%B %d, %Y %H:%M:%S")
+	print(f'Generation of MDS input files ends: {Tend}')

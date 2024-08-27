@@ -1,16 +1,14 @@
 #!/usr/bin/env python
 """
-    pyGROMODS-v2024.01 Release
+    pyGROMODS-v2024.02 Release
 
                 <<<  NO WARRANTY AT ALL!!!  >>>
     
-    Requirements: Python 3 or higher
+    Requirements: Python 3.5 or higher
                   Antechamber and related AmberTools
                   OpenBabel (strongly recommended for use with acpype)
 				  acpype (latest version recommended with all its requirements)
-				  Gromacs (Compulsory)
-                  flask (Compulsory)
-                  flaskwebgui (recommended)
+				  GROMACS (Compulsory)
 
     Daniyan, Michael Oluwatoyin, B.Pharm. M.Sc. (Pharmacology) and Ph.D. (Science) Biochemistry
     Department of Pharmacology, Faculty of Pharmacy
@@ -93,7 +91,7 @@ time.sleep(5)
 gmodsport = ""
 while True:
     tryport = ""
-    for rdport in random.sample(range(10), 4):
+    for rdport in random.sample(range(3, 10), 4):
         tryport += str(rdport)
 
     try:
@@ -111,8 +109,8 @@ while True:
         break
 
 # Tested and trusted versions of flaskwebgui are bundled with the package to avoid breaking
-plat4m = platform.platform().split('-')
-if "WSL2" in plat4m or "wsl2" in plat4m:
+plat4m = platform.system()
+if plat4m.lower() == "linux" or plat4m.lower() == "posix":
     try:
         from gmodsScripts.flaskwebgui.flaskwebgui037 import FlaskUI
         ui = FlaskUI(app, width=900, height=650, port=gmodsport) # for v037
@@ -120,8 +118,8 @@ if "WSL2" in plat4m or "wsl2" in plat4m:
         print(f"'flaskwebgui' failed with error: {e1}")
         print("Trying again ...")
         try:
-            from gmodsScripts.flaskwebgui.flaskwebgui106 import FlaskUI
-            ui = FlaskUI(app=app, width=900, height=650, port=gmodsport, server="flask") # for v106
+            from gmodsScripts.flaskwebgui.flaskwebgui112 import FlaskUI
+            ui = FlaskUI(app=app, width=900, height=650, port=gmodsport, server="flask") # for v112
         except Exception as e2:
             printWarning(f"'flaskwebgui' failed with error: {e2}")
             print("Please check and correct the errors")
@@ -129,8 +127,8 @@ if "WSL2" in plat4m or "wsl2" in plat4m:
             ui = app
 else:
     try:
-        from gmodsScripts.flaskwebgui.flaskwebgui106 import FlaskUI
-        ui = FlaskUI(app=app, width=900, height=650, port=gmodsport, server="flask") # for v106
+        from gmodsScripts.flaskwebgui.flaskwebgui112 import FlaskUI
+        ui = FlaskUI(app=app, width=900, height=650, port=gmodsport, server="flask") # for v112
     except Exception as e1:
         print(f"'flaskwebgui' failed with error: {e1}")
         print("Trying again ...")
@@ -163,7 +161,7 @@ else:
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-ALLOWED_EXTENSIONS = {'pdb', 'mol2', 'gro', 'top', 'itp', 'mdp', 'h', 'cl', 'clh', 'in'}
+ALLOWED_EXTENSIONS = {'pdb', 'mol2', 'gro', 'top', 'itp', 'mdp', 'h', 'cl', 'clh', 'in', 'ndx'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -344,7 +342,7 @@ def ff_selection():
 
 		# Check if selected route is valid
         if not (ffselect == "Amber" or ffselect == "Charmm" or ffselect == "Gromos" or ffselect == "Opls"):
-            flash('You must select a forcefileds group')
+            flash('You must select a GROMACS compatible forcefileds group')
             return redirect("/selectffgroup")
 
         if not (ffupload == "YES" or ffupload == "NO") and not N == 4:
@@ -583,11 +581,11 @@ def rlupload():
                 return redirect("/")
 
             if not request.form.get("gmodsff"):
-                flash('You must select a forcefiled')
+                flash('You must select a forcefiled or opt for interactive mode')
                 return redirect("/")
 
             if not request.form.get("watertype"):
-                flash('You must select a water model')
+                flash('You must select a water model or opt for interactive mode')
                 return redirect("/")
 
             # Create subfolder for each ligand and receptor uploads
@@ -644,19 +642,33 @@ def rlupload():
 		    # Store the submitted symbol as varibale and check if valid
             ffwater = request.form.get("watertype")
             ffselect = request.form.get("gmodsff")
-            if not (ffselect[0:5].capitalize() == "Amber" or ffselect[0:6].capitalize() == "Charmm" or ffselect[0:6].capitalize() == "Gromos" or ffselect[0:4].capitalize() == "Opls"):
+            if not (ffselect[0:5].capitalize() == "Amber" or ffselect[0:6].capitalize() == "Charmm" or ffselect[0:6].capitalize() == "Gromos" or ffselect[0:4].capitalize() == "Opls" or ffselect.capitalize() == "Select"):
                 flash('You must select a forcefiled. Try upload again')
                 return redirect("/")
 
             ligsff_file = os.path.join(app.config['UPLOAD_FOLDER'], 'Ligsff', Ffolder, ffselect)
-            if not (os.path.isdir(ligsff_file) or os.path.isfile(ligsff_file)):
+            if not (os.path.isdir(ligsff_file) or os.path.isfile(ligsff_file)) and not ffselect == "select":
                 fileff = open(ligsff_file, "w")
                 fileff.close()
 
+            elif ffselect == "select":
+                newffselect = ffselect + "_ff"
+                nligsff_file = os.path.join(app.config['UPLOAD_FOLDER'], 'Ligsff', Ffolder, newffselect)
+                if not (os.path.isdir(nligsff_file) or os.path.isfile(nligsff_file)):
+                    fileff = open(nligsff_file, "w")
+                    fileff.close()
+
             ligsww_file = os.path.join(app.config['UPLOAD_FOLDER'], 'Ligsff', Ffolder, ffwater)
-            if not (os.path.isdir(ligsww_file) or os.path.isfile(ligsww_file)):
+            if not (os.path.isdir(ligsww_file) or os.path.isfile(ligsww_file)) and not ffwater == "select":
                 fileww = open(ligsww_file, "w")
                 fileww.close()
+
+            elif ffwater == "select":
+                newffwater = ffwater + "_ww"
+                nligsww_file = os.path.join(app.config['UPLOAD_FOLDER'], 'Ligsff', Ffolder, newffwater)
+                if not (os.path.isdir(nligsww_file) or os.path.isfile(nligsww_file)):
+                    fileww = open(nligsww_file, "w")
+                    fileww.close()
 
             flash('Successful Receptor and Ligands files Upload. Click Uploads Menu to upload additional pair of receptor and ligand')
             return render_template("upload.html", Lfilelist=Lfile, Rfilelist=Rfile, ffselect=ffselect, ffwater=ffwater, N=N, F=F, category='success')
@@ -676,11 +688,11 @@ def rlupload():
                 return redirect("/")
 
             if not request.form.get("gmodsff"):
-                flash('You must select a forcefiled xxx')
+                flash('You must select a forcefiled or opt for interactive mode')
                 return redirect("/")
 
             if not request.form.get("watertype"):
-                flash('You must select a water model')
+                flash('You must select a water model or opt for interactive mode')
                 return redirect("/")
 
             # Create subfolder for each ligand and receptor uploads
@@ -718,7 +730,7 @@ def rlupload():
             ffwater = request.form.get("watertype")
             ffselect = request.form.get("gmodsff")
 
-            if not (ffselect[0:5].capitalize() == "Amber" or ffselect[0:6].capitalize() == "Charmm" or ffselect[0:6].capitalize() == "Gromos" or ffselect[0:4].capitalize() == "Opls"):
+            if not (ffselect[0:5].capitalize() == "Amber" or ffselect[0:6].capitalize() == "Charmm" or ffselect[0:6].capitalize() == "Gromos" or ffselect[0:4].capitalize() == "Opls" or ffselect[0:6].capitalize() == "Select"):
                 flash('You must select a forcefiled. Try upload again')
                 return redirect("/")
 
@@ -730,6 +742,8 @@ def rlupload():
                 ff_dir = "Gromos"
             elif ffselect[0:4].capitalize() == "Opls":
                 ff_dir = "Opls"
+            elif ffselect[0:6].capitalize() == "Select":
+                ff_dir = "Select"
 
             ligsff_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'Ligsff', Ffolder, ff_dir)
             if not os.path.isdir(ligsff_dir):
@@ -740,10 +754,26 @@ def rlupload():
                 fileff = open(ligsff_file, "w")
                 fileff.close()
 
+            elif os.path.isdir(ligsff_file) and ffselect == "select":
+                #rename ffselect to create a file that can be tracked
+                newffselect = ffselect + "_ff"
+                nligsff_file = os.path.join(app.config['UPLOAD_FOLDER'], 'Ligsff', Ffolder, newffselect)
+                if not os.path.isfile(nligsff_file):
+                    fileff = open(nligsff_file, "w")
+                    fileff.close()
+
             ligsww_file = os.path.join(app.config['UPLOAD_FOLDER'], 'Ligsff', Ffolder, ffwater)
             if not (os.path.isdir(ligsww_file) or os.path.isfile(ligsww_file)):
                 fileww = open(ligsww_file, "w")
                 fileww.close()
+
+            elif os.path.isdir(ligsww_file) and ffwater == "select":
+                # rename ffwater to create a file that can be tracked
+                newffwater = ffwater + "_ww"
+                nligsww_file = os.path.join(app.config['UPLOAD_FOLDER'], 'Ligsff', Ffolder, newffwater)
+                if not os.path.isfile(nligsww_file):
+                    fileff = open(nligsww_file, "w")
+                    fileff.close()
 
 			# if valid file(s) submitted, safe ligands
             Lfile = request.files['Lfile']
@@ -911,7 +941,7 @@ def runscripts():
 
             os.chdir(gmxDIR)
 
-            if nmpass > nmfail:
+            if nmpass > 0 and nmfail == 0:
                 flash(f'Protein - Ligand Complex Generation Completed with: {nmpass} PASSED / {nmfail} FAILED')
                 return render_template("runscripts.html", N=N, selected=selected, gmxtoplist=gmxtoplist, dictff=dictff, category='success')
             else:
@@ -933,7 +963,7 @@ def runscripts():
 
             os.chdir(gmxDIR)
 
-            if nspass > nsfail:
+            if nspass > 0 and nsfail == 0:
                 flash(f'Protein - Ligand Complex Generation Completed with: {nspass} PASSED / {nsfail} FAILED')
                 return render_template("runscripts.html", N=N, selected=selected, gmxtoplist=gmxtoplist, dictff=dictff, category='success')
             else:
@@ -955,7 +985,7 @@ def runscripts():
 
             os.chdir(gmxDIR)
 
-            if nppass > npfail:
+            if nppass > 0 and npfail == 0:
                 flash(f'Protein - Ligand Complex Generation Completed with: {nppass} PASSED / {npfail} FAILED')
                 return render_template("runscripts.html", N=N, selected=selected, gmxtoplist=gmxtoplist, dictff=dictff, category='success')
             else:
@@ -1191,10 +1221,27 @@ def conmds_script():
         flash('The required compulsory files are missing from the selected directory')
         return render_template("scmdcontinuation.html", N=N)
 
-    if not ('posre.itp' in cwdirall  or 'posre_udp.itp' in cwdirall ):
-        printNote("No restraint file was found. If defined -DP0SRE OR -DPOSRE_UDP in .mdp file, you must include posre.itp or posre_udp.itp file respectively")
+    if not ('posre.itp' in cwdirall and 'posre_udp.itp' in cwdirall):
+        printNote("No restraint file was found. If defined -DP0SRE OR -DPOSRE_UDP in .mdp file, you must include posre.itp or posre_udp.itp respectively in the working folder")
 
-    if not ('LIGS_at.itp' in cwdirall or 'LIGS_mn.itp' in cwdirall or 'LIGS_mt.itp' in cwdirall):
+    elif 'posre_udp.itp' in cwdirall and 'posre.itp' in cwdirall:
+        printNote("Two restraint files are found. Only the one defined .mdp file will be used")
+
+    elif 'posre_udp.itp' in cwdirall or 'posre.itp' in cwdirall:
+        for sre in cwdirall:
+            if sre == 'posre_udp.itp':
+                print("Only user defined restriant file was found. To use it, you must define -DPOSRE_UDP in .mdp file")
+                print("However, if already defined -DPOSRE, rename the file to posre.itp")
+                response = input("Type YES to rename. Otherwise, press ENTER to continue: ")
+                if response.lower() == "yes" or response.lower() == "y":
+                    os.rename('posre_udp.itp', 'posre.itp')
+            elif sre == 'posre.itp':
+                print("Only posre.itp restraint file was found. To use it, please check that -DPOSRE is defined in .mdp file")
+
+    if 'indexfile.ndx' in cwdirall:
+        printNote("Found index file and will be supplied to grompp")
+        
+    if not ('LIGS_at.itp' in cwdirall or 'LIGS_mt.itp' in cwdirall):
         printNote("One or more Ligand(s) related files are missing. They may not be needed if all needed parameters are contained in topol.top file. Otherwise, the process may fail")
 
     if not 'mdps' in cwdirall:
@@ -1346,8 +1393,8 @@ def conmds_script():
                 fcer.close()
                 return render_template("selectmdstype.html", N=N, category='warning')
 
-            elif "extend.tpr" in emddir:
-                print("Please backup any existing PMD folder if you want to extend")
+            if "extend.tpr" in emddir:
+                print("Please backup any existing PMD folder if you want to extend equilibration step")
                 response = input("To extend Equilibration MDS, type YES/y. Otherwise press ENTER to continue: ")
                 if not (response.lower() == "yes" or response.lower() == "y"):
                     printNote("Noted: Equilibration production was previously completed. Nothing to do")
@@ -1439,7 +1486,7 @@ def conmds_script():
                 fcer.close()
                 return render_template("selectmdstype.html", N=N, category='warning')
 
-            elif "extend.tpr" in pmddir:
+            if "extend.tpr" in pmddir:
                 printNote("Continuation assume extension of previous run")
                 response = input("To continue from where its ended, type YES/y. Otherwise press ENTER to end: ")
                 if not (response.lower() == "yes" or response.lower() == "y"):

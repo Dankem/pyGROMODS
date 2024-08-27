@@ -4,12 +4,12 @@
     ~~~~~
 
     A python-based GUI for the generation of Molecular Dynamic 
-    Input files and running MDS
+    Input files and running MDS with GROMACS
     :license: MIT
 """
 # All imports are done within the calling scripts
 
-__version__ = "v2024.01"
+__version__ = "v2024.02"
 
 from . import uppreqs
 import pipreqs

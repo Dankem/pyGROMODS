@@ -1,4 +1,4 @@
-# pyGROMODS-v2024.01 Release
+# pyGROMODS-v2024.02 Release
 #protoptleap.in 
 # To amber topology and parameter files for convertion to gromacs using acype for peptide and protein
 source leaprc.gaff2 #

@@ -1,15 +1,15 @@
-; MDS-Production Sample file - pyGROMODS-v2024.01 Release
+; MDS-Production Sample file - pyGROMODS-v2024.02 Release 
 
 title                    = Production Simulation
 
 ; Define can be used to control processes
-define          = -DPOSRES
+define                   = -DPOSRES
 
 ; RUN CONTROL PARAMETERS
 integrator               = md
 tinit                    = 0       ; Starting time
 dt                       = 0.002   ; 2 femtosecond time step for integration
-nsteps                   = 5000        ; Make it 4 ns
+nsteps                   = 150000        ; Make it 4 ns
 
 ; OUTPUT CONTROL OPTIONS
 nstxout                  = 1000  ; Writing full precision coordinates every 50 ps

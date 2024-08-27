@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-    pyGROMODS-v2024.01 Release
+    pyGROMODS-v2024.02 Release
     
             <<<  NO WARRANTY AT ALL!!!  >>>
     

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-    pyGROMODS-v2024.01 Release
+    pyGROMODS-v2024.02 Release
 
           <<<  NO WARRANTY AT ALL!!!  >>>
 
@@ -22,11 +22,11 @@ import os
 from pathlib import Path
 import time
 import shutil
+import math
 
 from gmodsScripts.gmodsHelpers import insertdetails, indexoflines, printWarning, printNote, tinput, gmxtop
 
 def TLtopol(xrecfile, tlpcomtop, tff):
-	print('\n')
 	tlpcwdir = Path.cwd()
 	tltopol = "tlptopol.top"
 	tltopolopen = open(tltopol, "+a")
@@ -47,38 +47,78 @@ def TLtopol(xrecfile, tlpcomtop, tff):
 
 	at_id = 0
 	for xL in xrecreadlines:
-		xLat = xL.split()
-		if ('Include' in xLat and 'forcefield' in xLat and 'parameters' in xLat):
+		xLat = []
+		for lat in xL.split():
+			xLat.append(lat.lower())
+
+		if ('include' in xLat and 'forcefield' in xLat and 'parameters' in xLat):
 			tltopolopen.write(xL)
 			at_id += 1
 			tltopolopen.write(xrecreadlines[at_id])
-			tltopolopen.write('\n')
 			break
+
 		else:
 			at_id += 1
+
+	# Create a list of all atomypes entries in LIGS_at.itp, if present
+	ligsat = []
+	if "LIGS_at.itp" in os.listdir():
+		ligatopen = open("LIGS_at.itp", "r")
+		ligatreadlines = ligatopen.readlines()
+		for atL in ligatreadlines:
+			if not ("atomtypes" in atL.lower().split() or "bond_type" in atL.lower().split() or atL.split() == []):
+				try:
+					ligsat.append(atL.lower().split()[0])
+				except IndexError:
+					pass
+		ligatopen.close()
 
 	# Insert the content of tleap/acpype generated topol file from atomtypes into tlptopol.top
 	tlpcindex = indexoflines(tlpcomtop)
 	tlpcopen = open(tlpcomtop, "r")
 	tlpcreadlines = tlpcopen.readlines()
 	taindex = tlpcindex['atomtypes']
+	tmindex = tlpcindex['moleculetype']
 
-	for tline in tlpcreadlines:
-		if not tline in tlpcreadlines[0:int(taindex)]:
+	if not len(ligsat) > 0:
+		tlpcopen.seek(0)
+		for tline in tlpcreadlines[int(taindex):]:
 			tltopolopen.write(tline)
+		tltopolopen.write('\n')
+
+	else:
+		print("Removing duplicated ligand(s) atomtypes...")
+		tlpcopen.seek(0)
+		for tline in tlpcreadlines[int(taindex):int(tmindex)]:
+			try:
+				if not tline.lower().split()[0] in ligsat:
+					tltopolopen.write(tline)
+			except IndexError:
+				pass
+		tltopolopen.write('\n')
+
+		tlpcopen.seek(0)
+		for tline in tlpcreadlines[int(tmindex):]:
+			tltopolopen.write(tline)
+		tltopolopen.write('\n')
 
 	tltopolopen.close()
 	tlpcopen.close()
+	time.sleep(5)
 
 	# Create a new file and populate it with relevant details found at the end of pdb2gmx topol file
+	print("Generating gromacs compatible tlptopol file...")
 	tlmnfile = "tlptopol_mn.itp"
 	tlmnfileopen = open(tlmnfile, "+a")
 
 	xrecfileopen.seek(0)
 	xn = 0
 	for xline in xrecreadlines:
-		xlinelist = xline.split()
-		if "POSRES" in xlinelist:
+		nxline = []
+		for xl in xline.split():
+			nxline.append(xl.lower())
+
+		if "#ifdef" in nxline and "posres" in nxline:
 			tlmnfileopen.write('\n')
 			xnid = xn - 1
 			while xnid < int(tsindex):
@@ -86,6 +126,22 @@ def TLtopol(xrecfile, tlpcomtop, tff):
 				xnid += 1
 			tlmnfileopen.write('\n')
 			break
+
+		elif "include" in nxline and "water" in nxline and "topology" in nxline and not "#ifdef POSRES" in xrecreadlines:
+			tlmnfileopen.write('\n')
+			tlmnfileopen.write('; Include Position restraint file')
+			tlmnfileopen.write('#ifdef POSRES')
+			tlmnfileopen.write('#include "posre.itp"')
+			tlmnfileopen.write('#endif')
+			tlmnfileopen.write('\n')
+			
+			xnid = xn
+			while xnid < int(tsindex):
+				tlmnfileopen.write(xrecreadlines[xnid])
+				xnid += 1
+			tlmnfileopen.write('\n')
+			break
+
 		else:
 			xn += 1
 
@@ -98,10 +154,10 @@ def TLtopol(xrecfile, tlpcomtop, tff):
 
 	# We shall check for and remove duplicates in atomtypes between gmx standard and amber/tleap generated 
 	# Determine the appropriate forcefield directory selected at run time
-
 	tlpindex = indexoflines(tltopol)
 	atlp = int(tlpindex['atomtypes'])
 	mtlp = int(tlpindex['moleculetype'])
+	stlp = int(tlpindex['system'])
 
 	topol = open(tltopol, "r")
 	topolreadlines = topol.readlines()
@@ -121,12 +177,10 @@ def TLtopol(xrecfile, tlpcomtop, tff):
 	if not ff == tff:
 		print('\n')
 		print(f"The detected {ff} does not match what was detected earlier {tff}")
-		print(f"To use the recommended forcefield, '{tff}', type YES/y")
-		print("To continue with currently detected forcefield {", ff, "}, press ENTER")
+		print(f"Type YES/y to continue with '{ff}', OR press ENTER to change to '{tff}")
 		response = tinput("Response: ", 30, "y")
-		if (response.lower() == "yes" or response.lower() == "y"):
+		if not (response.lower() == "yes" or response.lower() == "y"):
 			ff = tff
-			print(f"The forcefield directory has been changed to {ff}")
 		
 	# Get the absolute path to the forcefield directory and copy ffnonbonded.itp file
 	gmxtopdir = " "
@@ -140,7 +194,7 @@ def TLtopol(xrecfile, tlpcomtop, tff):
 			print("You have exceeded maximum trying attempts")
 			printWarning("Checked version of tlptopol cannot be generated")
 			print("The platform will use the unchecked original file")
-			time.sleep(5)
+			time.sleep(3)
 			print('\n')
 			return tlpcomtop
 
@@ -156,7 +210,7 @@ def TLtopol(xrecfile, tlpcomtop, tff):
 			else:
 				printWarning("Checked version of tlptopol cannot be generated")
 				print("The platform will use the unchecked original file")
-				time.sleep(5)
+				time.sleep(3)
 				print('\n')
 				return tlpcomtop
 			
@@ -199,15 +253,23 @@ def TLtopol(xrecfile, tlpcomtop, tff):
 				pass
 
 	ffb.seek(0)
+	time.sleep(5)
 
 	# Check the tlptopol.top file to remove duplicate by comparing with ffnonbonded.itp list of atomtypes
-	print("Checking for and removing duplicate atomtypes from tlptopol.top...")
-	time.sleep(5)
+	print("Checking for and removing duplicate atomtypes from tlptopol file...")
 	mtlp = mtlp - 1
 	topol.seek(0)
 	ntopol = open("ntlptopol.top", "+a")
 	for aline in topolreadlines[0:atlp]:
 		ntopol.write(aline)
+	ntopol.write('\n')
+	
+	if "LIGS_at.itp" in os.listdir():
+		ntopol.write('; Include Ligands Atomtypes')
+		ntopol.write('\n')
+		ntopol.write('#include "LIGS_at.itp"')
+		ntopol.write('\n')
+	ntopol.write('\n')
 
 	topol.seek(0)
 	for bline in topolreadlines[atlp:mtlp]:
@@ -249,33 +311,83 @@ def TLtopol(xrecfile, tlpcomtop, tff):
 		ntopol.write('\n')
 
 		topol.seek(0)
-		for cline in topolreadlines[btlp:]:
+		stlpx = stlp + 3
+		for cline in topolreadlines[btlp:stlpx]:
 			ntopol.write(cline)
 
+		topol.seek(0)
+		for csline in topolreadlines[stlpx:]:
+			if not csline.split() == []:
+				ntopol.write(csline)
+
 	else:	
-		for cline in topolreadlines[mtlp:]:
+		stlpx = stlp + 3
+		for cline in topolreadlines[mtlp:stlpx]:
 			ntopol.write(cline)
+
+		topol.seek(0)
+		for csline in topolreadlines[stlpx:]:
+			if not csline.split() == []:
+				ntopol.write(csline)
 
 	ffb.close()
 	topol.close()
 	ntopol.close()
+	time.sleep(5)
 
 	# Now we shall backup the tlptopol.top and rename ntlptopol.top as tlptopol.top
 	os.rename('tlptopol.top', '##tlptopol##')
 	os.rename('ntlptopol.top', 'tlptopol.top')
 
 	# Check to be sure tlptopol.top has been successfully generated
-	print('\n')
+	print("Performing final checks on tlptopol file...")
 	checktlp = os.listdir()
+
 	if not "tlptopol.top" in checktlp:
 		printWarning("Generating tlptopol.top file was not successful")
 		print("If you need it later, check and correct any error, then rerun")
+		print('\n')
+		time.sleep(3)
 		return tlpcomtop
+	
 	else:
 		printNote("tlptopol.top has been generated successfully")
-		print("PLEASE NOTE:")
-		print("**** Two topology files have been generated - topol.top and tlptopol.top")
-		print("**** By default, topol.top will be used, while tlptopol serves as backup")
-		time.sleep(5)
-
+		print("By default, topol.top will be used, while tlptopol serves as backup")
+		print('\n')
+		time.sleep(3)
 		return 'tlptopol.top'
+
+
+def tlpfinal(tlpfile, gmxfile):
+	gmxindex = indexoflines(gmxfile)
+	sysindex = int(gmxindex['system'])
+
+	with open(gmxfile, "r") as gf:
+		gmxreadlines = gf.readlines()
+
+	with open(tlpfile, "+a") as tf:
+		for gfline in gmxreadlines[sysindex:]:
+			if "SOL" in gfline.split() or "NA" in gfline.split() or "CL" in gfline.split():
+				tf.write(gfline)
+
+	# Check the newly generated file
+	tlpindex = indexoflines(tlpfile)
+	stlpindex = int(tlpindex['system'])
+
+	with open(tlpfile, "r") as lp:
+		tlpreadlines = lp.readlines()
+
+	check = 0
+	for pline in tlpreadlines[stlpindex:]:
+		if "SOL" in pline.split() or "NA" in pline.split() or "CL" in pline.split():
+			check += 1
+	
+	if not check == 3:
+		printWarning("Final Processing of tlptopol.top file appears unsuccessful. Please check")
+		return tlpfile
+	else:
+		printNote("Final Processing of tlptopol.top file appears successful. Please check")
+		return tlpfile
+
+
+

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-    pyGROMODS-v2024.01 Release
+    pyGROMODS-v2024.02 Release
 
           <<<  NO WARRANTY AT ALL!!!  >>>
 
@@ -27,14 +27,8 @@ from gmodsScripts.gmodsHelpers import topolsplit, indexoflines, printWarning, pr
 def checktopsimilarities(mtsavedir):
 	""" To run this script you must navigate to the directory containing topology files to be compared """
 	print('\n')
-	printNote("PLEASE TAKE NOTE OF THE FOLLOWING FOR MOLECULE TYPE GENERATION:")
-	print("1.	Only one of the Ligands with identical [ moleculetype ] name will be used.")
-	print("2.	Any other files with similar molecule types identity will be skipped.")
-	print("3.	Crosscheck to decide on wither or not you want to include the file(s).")
-	print("4.	To include, ensure each file has unique molecule name and rerun")
-
 	print("Similarity checks in progress ...")
-	time.sleep(10)
+	time.sleep(3)
 
 	# Get the list of files
 	topoldir = os.listdir()
@@ -211,8 +205,6 @@ def Checkligtop(ligtop, ff):
 	ffb.seek(0)
 
 	# Check the ligand topology file (generated or uploaded) to remove duplicate atomtypes
-	print("Checking for and removing duplicate atomtypes from ligand topology ...")
-	time.sleep(5)
 	mtlp = mtlp - 1
 	topol.seek(0)
 	ntopol = open("chkLIG.top", "+a")
